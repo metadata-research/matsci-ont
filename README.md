@@ -55,6 +55,7 @@ pnpm check:manifest    # shape of every manifest entry
 pnpm ingest            # fetch, verify, validate, load into build/tdb2
 pnpm verify            # acceptance checks against the built store
 pnpm verify:full       # the same, plus a second build compared to the first
+pnpm test:compare      # proves the comparison tiers catch what they claim
 pnpm serve             # serve the store locally on port 3031
 ```
 
@@ -65,6 +66,32 @@ is swapped into `build/tdb2` only when every source succeeds, so a failed
 run leaves the previous store in place. `tools/`, `cache/`, and `build/` are
 not tracked: the store is a function of the manifest and is rebuilt, never
 backed up.
+
+`riot --validate` exits zero on a warning, so an ill-typed literal would
+otherwise enter the store unremarked. The ingest treats any warning as a
+failure. A source that legitimately warns needs `"allowWarnings": true` in
+its manifest entry, which records the decision next to the pin. None of the
+current sources warn.
+
+## Comparing two builds
+
+`pnpm verify:full` builds the store a second time and compares the two in
+three tiers, because TDB2 directories are not byte-stable and blank node
+labels are minted per parser run:
+
+| Tier | Check | Catches |
+| --- | --- | --- |
+| 1 | per-graph quad counts | a graph that gained or lost content |
+| 2 | blank-node-blinded sorted hash | a changed value anywhere, including inside a blank node |
+| 3 | per-graph `rdfcompare` isomorphism | everything above, plus blank node topology |
+
+Tier 3 is the gate. The weaker tiers are kept because they localize a
+failure cheaply, not because they are sufficient: in these ontologies the
+axioms are inside blank nodes, so an `owl:minCardinality` that changed from
+2 to 3 keeps every count identical, and a blank node topology swap keeps the
+blinded hash identical. `pnpm test:compare` builds both of those cases and
+asserts which tier catches each, so a regression in the comparison shows up
+as a failing test rather than as checks that pass on everything.
 
 Port 3031 is the default because port 3030 is the local MatSci-SAM store on
 a workstation that runs both. In production the two are one Fuseki process

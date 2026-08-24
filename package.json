@@ -8,6 +8,7 @@
     "ingest": "node pipeline/ingest.mjs",
     "verify": "node pipeline/verify.mjs",
     "verify:full": "node pipeline/verify.mjs --determinism",
+    "test:compare": "node pipeline/test-compare.mjs",
     "serve": "node pipeline/serve.mjs"
   }
 }

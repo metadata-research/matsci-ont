@@ -51,6 +51,9 @@ function checkEntry(entry, file) {
   need("license", typeof entry.license === "string" && entry.license.length > 0, "is required (SPDX identifier)");
   need("republishable", typeof entry.republishable === "boolean", "is required and boolean");
 
+  if (entry.allowWarnings !== undefined) {
+    need("allowWarnings", typeof entry.allowWarnings === "boolean", "must be boolean when present");
+  }
   if (entry.modules !== undefined) {
     need("modules", Array.isArray(entry.modules), "must be a list");
     if (Array.isArray(entry.modules)) {

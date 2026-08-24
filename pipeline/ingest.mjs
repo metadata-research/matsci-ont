@@ -95,6 +95,23 @@ for (const entry of entries) {
           `riot rejected ${artifact.url}\n${validation.stderr.trim().split("\n").slice(0, 5).join("\n")}`,
         );
       }
+      // riot exits 0 on warnings, so an ill-typed literal would otherwise
+      // enter the store unremarked. A source that legitimately warns needs
+      // "allowWarnings": true in its manifest entry, which records the
+      // decision where the pin is.
+      const warnings = validation.stderr
+        .split("\n")
+        .filter((line) => line.includes("WARN"));
+      if (warnings.length > 0 && !entry.allowWarnings) {
+        throw new Error(
+          `riot warned on ${artifact.url}\n${warnings.slice(0, 5).join("\n")}` +
+            (warnings.length > 5 ? `\n  and ${warnings.length - 5} more` : "") +
+            `\n  set "allowWarnings": true in the manifest entry to accept these`,
+        );
+      }
+      if (warnings.length > 0) {
+        process.stderr.write(`  ${warnings.length} warning(s) accepted by manifest\n`);
+      }
       paths.push(path);
     }
 
