@@ -1,0 +1,27 @@
+# Serves the Cytoscape export for one source: labelled nodes, hierarchy
+# edges, and object properties as labelled domain-to-range edges between
+# named classes. Union domains and ranges are blank nodes and are omitted
+# here, which the graph page states.
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+PREFIX owl:  <http://www.w3.org/2002/07/owl#>
+PREFIX ont:  <@@ONT@@>
+SELECT ?kind ?a ?b ?label WHERE {
+  {
+    GRAPH <@@DEFS@@> { ?a ont:sourceKey @@KEY@@ ; ont:label ?label }
+    GRAPH <@@GRAPH@@> { ?a a ?type }
+    VALUES ?type { owl:Class rdfs:Class skos:Concept }
+    BIND("node" AS ?kind)
+  } UNION {
+    GRAPH <@@GRAPH@@> { ?a rdfs:subClassOf|skos:broader ?b }
+    FILTER(isIRI(?a) && isIRI(?b))
+    BIND("edge" AS ?kind)
+  } UNION {
+    GRAPH <@@GRAPH@@> {
+      ?prop a owl:ObjectProperty ; rdfs:domain ?a ; rdfs:range ?b .
+    }
+    FILTER(isIRI(?a) && isIRI(?b))
+    OPTIONAL { GRAPH <@@DEFS@@> { ?prop ont:label ?label } }
+    BIND("prop" AS ?kind)
+  }
+}

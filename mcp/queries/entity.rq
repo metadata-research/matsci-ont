@@ -1,0 +1,27 @@
+# Serves the entity page: every triple about the entity in every graph,
+# plus the blank-node structures hanging off it to depth five, which covers
+# restriction axioms and intersection lists of up to about four members.
+# Anything deeper is absent from the axioms panel but the raw panel states
+# how far the closure reached. Blank node labels are consistent within one
+# result set, so the page can reassemble the subgraph.
+SELECT ?g ?s ?p ?o WHERE {
+  { GRAPH ?g { <@@IRI@@> ?p ?o } BIND(<@@IRI@@> AS ?s) }
+  UNION
+  { GRAPH ?g { <@@IRI@@> ?q0 ?s . ?s ?p ?o . FILTER(isBlank(?s)) } }
+  UNION
+  { GRAPH ?g { <@@IRI@@> ?q0 ?b0 . ?b0 ?q1 ?s . ?s ?p ?o .
+      FILTER(isBlank(?b0) && isBlank(?s)) } }
+  UNION
+  { GRAPH ?g { <@@IRI@@> ?q0 ?b0 . ?b0 ?q1 ?b1 . ?b1 ?q2 ?s . ?s ?p ?o .
+      FILTER(isBlank(?b0) && isBlank(?b1) && isBlank(?s)) } }
+  UNION
+  { GRAPH ?g { <@@IRI@@> ?q0 ?b0 . ?b0 ?q1 ?b1 . ?b1 ?q2 ?b2 . ?b2 ?q3 ?s .
+      ?s ?p ?o .
+      FILTER(isBlank(?b0) && isBlank(?b1) && isBlank(?b2) && isBlank(?s)) } }
+  UNION
+  { GRAPH ?g { <@@IRI@@> ?q0 ?b0 . ?b0 ?q1 ?b1 . ?b1 ?q2 ?b2 . ?b2 ?q3 ?b3 .
+      ?b3 ?q4 ?s . ?s ?p ?o .
+      FILTER(isBlank(?b0) && isBlank(?b1) && isBlank(?b2) && isBlank(?b3) &&
+             isBlank(?s)) } }
+}
+ORDER BY ?g ?p ?o

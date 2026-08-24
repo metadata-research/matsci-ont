@@ -1,0 +1,19 @@
+# Serves the entity-page children list, capped at 26 so the page can show
+# 25 and an overflow note. Both hierarchy directions of SKOS are covered.
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+PREFIX ont:  <@@ONT@@>
+SELECT DISTINCT ?child ?label ?inferred WHERE {
+  {
+    GRAPH ?g { ?child rdfs:subClassOf|skos:broader <@@IRI@@> }
+    BIND(?g = <@@INFGRAPH@@> && <@@GRAPH@@> != <@@INFGRAPH@@> AS ?inferred)
+  } UNION {
+    GRAPH ?g { <@@IRI@@> skos:narrower ?child }
+    BIND(false AS ?inferred)
+  }
+  FILTER(isIRI(?child))
+  FILTER(?g IN (<@@GRAPH@@>, <@@INFGRAPH@@>))
+  OPTIONAL { GRAPH <@@DEFS@@> { ?child ont:label ?label } }
+}
+ORDER BY ?label ?child
+LIMIT 26

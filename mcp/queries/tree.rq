@@ -1,0 +1,20 @@
+# Serves the source-page class tree: every labelled class or concept of one
+# source with its named parents. Properties are excluded by the type join.
+# The inferred graph equals the source graph unless the page asked for the
+# inferred view, in which case both graphs contribute parent edges.
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+PREFIX owl:  <http://www.w3.org/2002/07/owl#>
+PREFIX ont:  <@@ONT@@>
+SELECT DISTINCT ?s ?label ?parent ?inferred WHERE {
+  GRAPH <@@DEFS@@> { ?s ont:sourceKey @@KEY@@ ; ont:label ?label }
+  GRAPH <@@GRAPH@@> { ?s a ?type }
+  VALUES ?type { owl:Class rdfs:Class skos:Concept }
+  OPTIONAL {
+    GRAPH ?g { ?s rdfs:subClassOf|skos:broader ?parent }
+    FILTER(isIRI(?parent))
+    FILTER(?g IN (<@@GRAPH@@>, <@@INFGRAPH@@>))
+    BIND(?g = <@@INFGRAPH@@> && <@@GRAPH@@> != <@@INFGRAPH@@> AS ?inferred)
+  }
+}
+ORDER BY ?label

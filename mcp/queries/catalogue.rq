@@ -1,0 +1,21 @@
+# Serves the catalogue page: one row per source with its entry count.
+PREFIX dcterms: <http://purl.org/dc/terms/>
+PREFIX void:    <http://rdfs.org/ns/void#>
+PREFIX ont:     <@@ONT@@>
+SELECT ?key ?title ?version ?license ?ontologyIri ?graphIri ?triples ?entries WHERE {
+  GRAPH <@@CATALOG@@> {
+    ?src ont:sourceKey ?key ;
+         dcterms:title ?title ;
+         dcterms:hasVersion ?version ;
+         dcterms:license ?license ;
+         ont:ontologyIri ?ontologyIri ;
+         ont:namedGraph ?graphIri ;
+         void:triples ?triples .
+  }
+  OPTIONAL {
+    SELECT ?key (COUNT(?e) AS ?entries) WHERE {
+      GRAPH <@@DEFS@@> { ?e ont:sourceKey ?key }
+    } GROUP BY ?key
+  }
+}
+ORDER BY ?key

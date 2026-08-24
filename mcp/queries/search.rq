@@ -1,0 +1,18 @@
+# Serves search: word-boundary match over labels and definitions. The
+# boundary is required, the recorded lesson being that substring search
+# matches hasInteractionVolume for "sinter". The pattern is Java regex,
+# case-insensitive, and the search string arrives with its metacharacters
+# escaped.
+PREFIX ont: <@@ONT@@>
+SELECT ?s ?label ?definition ?key WHERE {
+  GRAPH <@@DEFS@@> {
+    ?s ont:label ?label ; ont:sourceKey ?key .
+    OPTIONAL { ?s ont:definition ?definition }
+    FILTER(
+      REGEX(STR(?label), CONCAT("\\b", @@REGEX@@), "i") ||
+      (BOUND(?definition) && REGEX(STR(?definition), CONCAT("\\b", @@REGEX@@), "i"))
+    )
+  }
+}
+ORDER BY ?key ?label
+LIMIT 200

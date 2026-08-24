@@ -13,6 +13,7 @@ import { loadManifest } from "./lib/manifest.mjs";
 import { startFuseki, stopFuseki, query } from "./lib/fuseki.mjs";
 import { graphCounts, dumpBlinded, graphsIsomorphic } from "./lib/compare.mjs";
 import { graphIris, baseUrl } from "./lib/derive.mjs";
+import { escape as escapeHtml } from "../mcp/lib/html.mjs";
 
 const STORE = join(ROOT, "build/tdb2");
 const STAGING = join(ROOT, "build/tdb2.new");
@@ -183,6 +184,140 @@ try {
     !service.ok,
     service.ok ? "the query was accepted" : `refused with HTTP ${service.status}`,
   );
+
+  // The browse application, started against the same store. The query URL
+  // is set before the app is imported, because mcp/lib/sparql.mjs captures
+  // it in a module-level constant at load time.
+  {
+    const appPort = 3199;
+    process.env.MATSCI_ONT_QUERY_URL = `${server.base}/query`;
+    const { startApp } = await import("../mcp/app.mjs");
+    const app = await startApp(appPort);
+    const page = async (path) => {
+      const response = await fetch(`http://127.0.0.1:${appPort}${path}`);
+      return { status: response.status, text: await response.text() };
+    };
+    try {
+      const routes = ["/", "/search?q=sinter"];
+      for (const entry of manifest) {
+        routes.push(`/source/${entry.key}`, `/graph/${entry.key}`, `/graph/${entry.key}.json`);
+      }
+      const broken = [];
+      for (const route of routes) {
+        const result = await page(route);
+        if (result.status !== 200) broken.push(`${route} answered ${result.status}`);
+      }
+      record(
+        "every application route answers",
+        broken.length === 0,
+        broken.join("\n") || `${routes.length} routes`,
+      );
+
+      const missing = await page("/entity?iri=https%3A%2F%2Fexample.org%2Fnope");
+      const badPath = await page("/nope");
+      record(
+        "unknown pages answer clean 404s",
+        missing.status === 404 && badPath.status === 404,
+        `entity ${missing.status}, path ${badPath.status}`,
+      );
+
+      // The PMDco material class shows its direct children on the page, not
+      // only in the store: every child IRI the store reports must appear as
+      // a link in the rendered source page.
+      const material = await query(
+        server.base,
+        `SELECT ?c WHERE { GRAPH <https://w3id.org/pmd/co/> {
+           ?c <http://www.w3.org/2000/01/rdf-schema#label> "material"@en } } LIMIT 1`,
+      );
+      const materialIri = material.ok
+        ? JSON.parse(material.text).results.bindings[0]?.c.value
+        : undefined;
+      const childRows = materialIri
+        ? await query(
+            server.base,
+            `SELECT DISTINCT ?child WHERE { GRAPH <https://w3id.org/pmd/co/> {
+               ?child <http://www.w3.org/2000/01/rdf-schema#subClassOf> <${materialIri}>
+               FILTER(isIRI(?child)) } }`,
+          )
+        : { ok: false };
+      const childIris = childRows.ok
+        ? JSON.parse(childRows.text).results.bindings.map((b) => b.child.value)
+        : [];
+      const sourceHtml = (await page("/source/pmdco")).text;
+      const childrenOnPage = childIris.filter((child) =>
+        sourceHtml.includes(`iri=${encodeURIComponent(child)}`),
+      );
+      record(
+        "the PMDco material class shows all 14 children on the source page",
+        childIris.length === 14 && childrenOnPage.length === 14,
+        `${childIris.length} children in the store, ${childrenOnPage.length} linked on the page`,
+      );
+
+      // The NIST vocabulary renders from skos:broader with no orphan flood:
+      // its tree shows far fewer roots than its 993 concepts.
+      const nistHtml = (await page("/source/nist-imrr")).text;
+      const nistRoots = (nistHtml.match(/<ul>\s*<li>/g) ?? []).length;
+      record(
+        "the NIST tree renders from skos:broader without an orphan flood",
+        nistHtml.includes("classes") && nistRoots > 0,
+        `${nistRoots} top-level list opener(s)`,
+      );
+
+      const fatigue = await page(
+        "/entity?iri=" +
+          encodeURIComponent(
+            "https://w3id.org/emmo/domain/characterisation-methodology/chameo#FatigueTesting",
+          ),
+      );
+      // Attribution and the elucidation text, which is the definition the
+      // precedence chose over rdfs:comment for CHAMEO.
+      const elucidation = await query(
+        server.base,
+        `SELECT ?d WHERE { GRAPH <https://w3id.org/emmo/domain/characterisation-methodology/chameo> {
+           <https://w3id.org/emmo/domain/characterisation-methodology/chameo#FatigueTesting>
+             <https://w3id.org/emmo#EMMO_967080e5_2f42_4eb2_a3a9_c58143e835f9> ?d } } LIMIT 1`,
+      );
+      const elucidationText = elucidation.ok
+        ? JSON.parse(elucidation.text).results.bindings[0]?.d.value
+        : undefined;
+      record(
+        "the FatigueTesting page attributes CHAMEO and shows its elucidation",
+        fatigue.status === 200 &&
+          fatigue.text.includes("1.0.3") &&
+          fatigue.text.includes("CC-BY-4.0") &&
+          Boolean(elucidationText) &&
+          fatigue.text.includes(escapeHtml(elucidationText)),
+        `status ${fatigue.status}, elucidation ${elucidationText ? "present" : "absent"}`,
+      );
+
+      const cardinality = await page(
+        "/entity?iri=" + encodeURIComponent("https://w3id.org/pmd/co/PMD_0010100"),
+      );
+      record(
+        "a cardinality restriction renders verbalized",
+        cardinality.text.includes("exactly 1"),
+        cardinality.text.includes("exactly 1") ? "PMD_0010100 shows exactly 1" : "not found",
+      );
+
+      const searchText = (await page("/search?q=sinter")).text;
+      record(
+        "search groups sources and honors word boundaries",
+        searchText.includes("nist-imrr") &&
+          searchText.includes("pmdco") &&
+          !searchText.includes("hasInteractionVolume"),
+      );
+
+      const pmdcoGraph = JSON.parse((await page("/graph/pmdco.json")).text);
+      const mdoGraph = JSON.parse((await page("/graph/mdo.json")).text);
+      record(
+        "the graph export truncates above 300 nodes and not below",
+        pmdcoGraph.truncated === true && mdoGraph.truncated === false,
+        `pmdco ${pmdcoGraph.elements.nodes.length} nodes, mdo ${mdoGraph.elements.nodes.length}`,
+      );
+    } finally {
+      app.close();
+    }
+  }
 
   // The full Fuseki server publishes a web UI and an admin API that takes no
   // credential and will create a dataset on request. The reviewed host unit

@@ -1,0 +1,11 @@
+# Serves the entity-page incoming references, capped at 51 so the page can
+# show 50 and an overflow note.
+PREFIX ont: <@@ONT@@>
+SELECT ?g ?s ?p ?label WHERE {
+  GRAPH ?g { ?s ?p <@@IRI@@> }
+  FILTER(!isBlank(?s))
+  FILTER(?g != <@@DEFS@@> && ?g != <@@CATALOG@@>)
+  OPTIONAL { GRAPH <@@DEFS@@> { ?s ont:label ?label } }
+}
+ORDER BY ?p ?s
+LIMIT 51

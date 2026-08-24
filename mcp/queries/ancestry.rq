@@ -1,0 +1,21 @@
+# Serves the entity-page hierarchy card: the entity's ancestors with their
+# own direct named parents, one query instead of a hop-by-hop walk. The
+# chain itself is assembled in code so the primary-parent choice is
+# deterministic and testable.
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+PREFIX ont:  <@@ONT@@>
+SELECT DISTINCT ?anc ?parent ?label WHERE {
+  {
+    GRAPH <@@GRAPH@@> { <@@IRI@@> (rdfs:subClassOf|skos:broader)* ?anc }
+  } UNION {
+    GRAPH <@@INFGRAPH@@> { <@@IRI@@> (rdfs:subClassOf|skos:broader)* ?anc }
+  }
+  FILTER(isIRI(?anc))
+  OPTIONAL {
+    GRAPH ?g { ?anc rdfs:subClassOf|skos:broader ?parent }
+    FILTER(isIRI(?parent))
+    FILTER(?g IN (<@@GRAPH@@>, <@@INFGRAPH@@>))
+  }
+  OPTIONAL { GRAPH <@@DEFS@@> { ?anc ont:label ?label } }
+}

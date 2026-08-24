@@ -8,9 +8,17 @@
     "ingest": "node pipeline/ingest.mjs",
     "verify": "node pipeline/verify.mjs",
     "verify:full": "node pipeline/verify.mjs --determinism",
-    "test": "node pipeline/test-derive.mjs && node pipeline/test-compare.mjs",
+    "test": "node pipeline/test-derive.mjs && node pipeline/test-compare.mjs && node mcp/test-app.mjs",
     "test:derive": "node pipeline/test-derive.mjs",
     "test:compare": "node pipeline/test-compare.mjs",
-    "serve": "node pipeline/serve.mjs"
+    "test:app": "node mcp/test-app.mjs",
+    "serve": "node pipeline/serve.mjs",
+    "app": "node mcp/app.mjs",
+    "dev": "node mcp/dev.mjs"
+  },
+  "dependencies": {
+    "cytoscape": "3.34.1",
+    "cytoscape-dagre": "4.0.0",
+    "dagre": "0.8.5"
   }
 }

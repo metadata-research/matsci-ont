@@ -1,0 +1,3 @@
+# Tells the pages whether any inferred graph exists yet, which is what
+# shows or hides the inferred toggle (Phase 9 lights this up).
+ASK { GRAPH <@@INFGRAPH@@> { ?s ?p ?o } }

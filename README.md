@@ -125,12 +125,14 @@ Port 3031 is the default because port 3030 is the local MatSci-SAM store on
 a workstation that runs both. In production the two are one Fuseki process
 serving two datasets.
 
-There is no MatSci-ONT web application yet. `pnpm serve` publishes a SPARQL
-query endpoint and nothing else: a browser can send a query as a URL and
-read the result, but there is no page to browse. The web UI and the admin
-API of Fuseki are both closed, as they are on the hosts, because the admin
-API takes no credential and will create a dataset on request. `pnpm verify`
-asserts they stay closed.
+`pnpm dev` starts the store and the browse application together. The
+application is at `http://localhost:3100/`: catalogue, class hierarchies,
+entity pages with verbalized OWL axioms, word-boundary search, and a
+Cytoscape graph view. [The browsing guide](docs/guide/browsing.md)
+describes the pages. The web UI and the admin API of Fuseki are both
+closed, as they are on the hosts, because the admin API takes no
+credential and will create a dataset on request. `pnpm verify` asserts
+they stay closed.
 
 ```bash
 curl -G http://localhost:3031/matsci-ont/query \
