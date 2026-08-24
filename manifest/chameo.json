@@ -1,0 +1,14 @@
+{
+  "key": "chameo",
+  "kind": "external-snapshot",
+  "title": "CHAMEO, the characterisation methodology domain ontology (EMMO)",
+  "ontologyIri": "https://w3id.org/emmo/domain/characterisation-methodology/chameo",
+  "graphIri": "https://w3id.org/emmo/domain/characterisation-methodology/chameo",
+  "version": "1.0.3",
+  "downloadUrl": "https://raw.githubusercontent.com/emmo-repo/domain-characterisation-methodology/1.0.3/chameo.ttl",
+  "sha256": "bdbe2e28ee154d8a661ace4d2cee2c38ae77a0344ed1aedde087a2d4103cc053",
+  "format": "ttl",
+  "license": "CC-BY-4.0",
+  "republishable": true,
+  "notes": "Release 1.0.3 (2026-08-03) publishes no assets, so the pin is raw at the tag. Not self-contained: the file declares owl:imports on 12 EMMO 1.0.3 modules, which the pipeline does not resolve (manifest rule). The snapshot loads standalone, and the EMMO closure arrives with the EMMO milestone (plan Phase 7). The inferred variants at the tag are stale (versionIRI still 1.0.2) and were rejected. versionIRI https://w3id.org/emmo/domain/characterisation-methodology/1.0.3/chameo. License from the dcterms:license header annotation and the README, no LICENSE file in the repository."
+}

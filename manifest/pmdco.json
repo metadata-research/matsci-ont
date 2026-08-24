@@ -1,0 +1,14 @@
+{
+  "key": "pmdco",
+  "kind": "external-snapshot",
+  "title": "PMD Core Ontology (PMDco)",
+  "ontologyIri": "https://w3id.org/pmd/co/",
+  "graphIri": "https://w3id.org/pmd/co/",
+  "version": "3.1.0",
+  "downloadUrl": "https://raw.githubusercontent.com/materialdigital/core-ontology/v3.1.0/pmdco.ttl",
+  "sha256": "6a2eaee33c4f8aeac7aa67773ecbeaeb6f5c5e35e2f16488ac8a92ee414a28db",
+  "format": "ttl",
+  "license": "CC-BY-4.0",
+  "republishable": true,
+  "notes": "Release v3.1.0 (2026-07-30) publishes no assets, so the pin is raw at the tag. pmdco.ttl is the full merged artifact, byte-identical to pmdco-full.ttl. versionIRI https://w3id.org/pmd/co/3.1.0. License confirmed in LICENSE.txt and the dcterms:license header annotation."
+}
