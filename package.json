@@ -4,6 +4,10 @@
   "type": "module",
   "packageManager": "pnpm@10.34.5",
   "scripts": {
-    "check:manifest": "node pipeline/check-manifest.mjs"
+    "check:manifest": "node pipeline/check-manifest.mjs",
+    "ingest": "node pipeline/ingest.mjs",
+    "verify": "node pipeline/verify.mjs",
+    "verify:full": "node pipeline/verify.mjs --determinism",
+    "serve": "node pipeline/serve.mjs"
   }
 }

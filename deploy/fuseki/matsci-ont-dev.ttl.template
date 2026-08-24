@@ -1,0 +1,35 @@
+# Fuseki assembler for the local MatSci-ONT development store.
+#
+# This mirrors the reviewed production policy in
+# matsci-ops/deploy/fuseki/config.ttl: federated query off, a 30 s query
+# timeout, and a union default graph so a query without GRAPH sees every
+# source at once. It differs in two ways, both deliberate. The location is
+# the local build directory, substituted by pipeline/serve.mjs because an
+# assembler cannot resolve a path relative to the repository. And there is
+# no Graph Store Protocol endpoint: the local store is built by the ingest
+# pipeline, so nothing writes over HTTP. The mirror writer of Phase 4 adds a
+# gsp_rw endpoint behind a credential when it lands.
+#
+# Endpoints, under /matsci-ont:
+#   query, sparql   SPARQL 1.1 Query, read only
+
+PREFIX :       <#>
+PREFIX fuseki: <http://jena.apache.org/fuseki#>
+PREFIX rdf:    <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX ja:     <http://jena.hpl.hp.com/2005/11/Assembler#>
+PREFIX tdb2:   <http://jena.apache.org/2016/tdb#>
+
+[] rdf:type fuseki:Server ;
+    ja:context [ ja:cxtName "arq:httpServiceAllowed" ; ja:cxtValue "false" ] ;
+    ja:context [ ja:cxtName "arq:queryTimeout" ; ja:cxtValue "30000" ] ;
+    fuseki:services ( :matsci_ont ) .
+
+:matsci_ont rdf:type fuseki:Service ;
+    fuseki:name "matsci-ont" ;
+    fuseki:endpoint [ fuseki:operation fuseki:query ; fuseki:name "query" ] ;
+    fuseki:endpoint [ fuseki:operation fuseki:query ; fuseki:name "sparql" ] ;
+    fuseki:dataset :matsci_ont_tdb2 .
+
+:matsci_ont_tdb2 rdf:type tdb2:DatasetTDB2 ;
+    tdb2:location "@@LOCATION@@" ;
+    tdb2:unionDefaultGraph true .

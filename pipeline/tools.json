@@ -1,0 +1,22 @@
+{
+  "comment": "Pinned workstation build tools. Host runtime pins are reviewed separately in matsci-ops/deploy/runtime-versions.env; these are the tools the ingest pipeline runs on a workstation. The Jena version matches JENA_VERSION there, and the Fuseki tarball hash matches JENA_FUSEKI_SHA512 there, verified 2026-08-24.",
+  "jena": {
+    "version": "6.2.0",
+    "url": "https://archive.apache.org/dist/jena/binaries/apache-jena-6.2.0.tar.gz",
+    "sha512": "2b467d2ff940c207aea935e012ecbb0f0ab3e6bf59b3fc4b3fbc6cf9cea11f1428e97882ec078a5ffc57e114e0f5c88ea98c4575e687cc1dd232f99324b7b2a2",
+    "directory": "apache-jena-6.2.0"
+  },
+  "fuseki": {
+    "version": "6.2.0",
+    "url": "https://archive.apache.org/dist/jena/binaries/apache-jena-fuseki-6.2.0.tar.gz",
+    "sha512": "ba65f5867d2d4741b2ed9e2af5a0d4fbb447909894ab2a0c6bc4dac8997f4fe339c87b13c48d45d054977769f0f8bf763ea346b1f7792d5cdc458041bd43a132",
+    "directory": "apache-jena-fuseki-6.2.0"
+  },
+  "java": {
+    "version": "21.0.12.1+1",
+    "url": "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.12.1%2B1/OpenJDK21U-jre_x64_linux_hotspot_21.0.12.1_1.tar.gz",
+    "sha256": "2413149700df0f7d440500a84a8f764c535f21e5a5e87d38328b64eec2c5b500",
+    "directory": "jdk-21.0.12.1+1-jre",
+    "comment": "Jena 6.2.0 requires Java 21 (class file 65). Any Java 21 runtime serves; this tarball keeps the workstation setup reproducible without a package install. The hosts use the reviewed openjdk-21-jre-headless package instead."
+  }
+}

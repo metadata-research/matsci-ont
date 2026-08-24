@@ -48,12 +48,33 @@ Two rules are enforced, and the check script refuses an entry that breaks
 either: every entry names a license and a hash, and content whose license
 forbids republication never enters the public store.
 
-## Checks
+## Building the store
 
 ```bash
-pnpm check:manifest
+pnpm check:manifest    # shape of every manifest entry
+pnpm ingest            # fetch, verify, validate, load into build/tdb2
+pnpm verify            # acceptance checks against the built store
+pnpm verify:full       # the same, plus a second build compared to the first
+pnpm serve             # serve the store locally on port 3031
 ```
 
-Node and pnpm versions are pinned in `.nvmrc` and `package.json`, matching
-the MatSci-SAM hosts. The Jena tools used by the pipeline are pinned in
-`matsci-ops/deploy/runtime-versions.env`.
+The ingest fetches each pinned artifact into a content-addressed cache,
+verifies its digest, validates it with `riot --validate`, and loads it with
+`tdb2.tdbloader --graph=<graphIri>`. The build goes to `build/tdb2.new` and
+is swapped into `build/tdb2` only when every source succeeds, so a failed
+run leaves the previous store in place. `tools/`, `cache/`, and `build/` are
+not tracked: the store is a function of the manifest and is rebuilt, never
+backed up.
+
+Port 3031 is the default because port 3030 is the local MatSci-SAM store on
+a workstation that runs both. In production the two are one Fuseki process
+serving two datasets.
+
+## Versions
+
+Node and pnpm are pinned in `.nvmrc` and `package.json`, matching the
+MatSci-SAM hosts. The Jena tools and a Java 21 runtime are pinned in
+`pipeline/tools.json` and installed into `tools/` on first use, with the
+digest verified before extraction. Jena 6.2.0 requires Java 21. The Jena
+version matches, and the Fuseki tarball digest equals, the reviewed host
+pins in `matsci-ops/deploy/runtime-versions.env`.

@@ -1,0 +1,20 @@
+{
+  "comment": "Entities that must resolve in the built store. Each is a class or concept named in the MatSci-SAM external vocabulary assessment as a mapping target, so losing one means the source changed shape under its pin.",
+  "entities": [
+    {
+      "iri": "https://w3id.org/pmd/co/PMD_0000934",
+      "source": "pmdco",
+      "expectLabel": "sintering"
+    },
+    {
+      "iri": "https://w3id.org/pmd/co/PMD_0090002",
+      "source": "pmdco",
+      "expectLabel": "band gap"
+    },
+    {
+      "iri": "https://w3id.org/emmo/domain/characterisation-methodology/chameo#FatigueTesting",
+      "source": "chameo",
+      "expectLabel": "FatigueTesting"
+    }
+  ]
+}
