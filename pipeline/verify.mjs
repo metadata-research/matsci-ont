@@ -183,6 +183,26 @@ try {
     !service.ok,
     service.ok ? "the query was accepted" : `refused with HTTP ${service.status}`,
   );
+
+  // The full Fuseki server publishes a web UI and an admin API that takes no
+  // credential and will create a dataset on request. The reviewed host unit
+  // selects the entry point without either, and so must the local runner:
+  // otherwise development runs a service the served policy forbids.
+  const origin = new URL(server.base).origin;
+  const admin = [];
+  for (const [path, method] of [
+    ["/", "GET"],
+    ["/$/server", "GET"],
+    ["/$/datasets", "GET"],
+  ]) {
+    const response = await fetch(`${origin}${path}`, { method }).catch(() => null);
+    if (response?.ok) admin.push(`${method} ${path} answered ${response.status}`);
+  }
+  record(
+    "no web UI and no admin API are served",
+    admin.length === 0,
+    admin.length > 0 ? admin.join("\n") : "root and admin paths all refused",
+  );
 } finally {
   await stopFuseki(server);
 }

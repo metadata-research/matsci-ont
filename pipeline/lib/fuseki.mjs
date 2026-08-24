@@ -28,9 +28,23 @@ export async function startFuseki({ storeLocation, port = DEFAULT_PORT, timeoutM
   const javaHome = join(ROOT, "tools", pins.java.directory);
   const config = await writeConfig(storeLocation);
 
+  // FusekiMainCmd is the entry point without the web UI and without the
+  // admin API, which is what the reviewed host unit selects with MAIN=main.
+  // Running the jar directly instead starts the full server: its admin API
+  // needs no credential and will create a dataset on request, so the local
+  // store would accept writes the served policy forbids.
   const child = spawn(
     join(javaHome, "bin", "java"),
-    ["-Xmx1g", "-jar", join(home, "fuseki-server.jar"), `--port=${port}`, `--config=${config}`],
+    [
+      "-Xmx1g",
+      "-cp",
+      join(home, "fuseki-server.jar"),
+      "org.apache.jena.fuseki.main.cmds.FusekiMainCmd",
+      `--config=${config}`,
+      "--localhost",
+      `--port=${port}`,
+      "--ping",
+    ],
     {
       env: {
         ...process.env,
