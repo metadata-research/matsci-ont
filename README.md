@@ -55,7 +55,7 @@ pnpm check:manifest    # shape of every manifest entry
 pnpm ingest            # fetch, verify, validate, load into build/tdb2
 pnpm verify            # acceptance checks against the built store
 pnpm verify:full       # the same, plus a second build compared to the first
-pnpm test:compare      # proves the comparison tiers catch what they claim
+pnpm test              # index precedence and comparison tiers
 pnpm serve             # serve the store locally on port 3031
 ```
 
@@ -72,6 +72,34 @@ otherwise enter the store unremarked. The ingest treats any warning as a
 failure. A source that legitimately warns needs `"allowWarnings": true` in
 its manifest entry, which records the decision next to the pin. None of the
 current sources warn.
+
+## The derived graphs
+
+The ingest emits two graphs of its own after the sources load, both
+functions of the manifest and the loaded content:
+
+- **catalog**, one resource per source: title, canonical IRI, named graph,
+  version, licence, download URL, digest, pinned modules, and triple count.
+- **definitions**, one entry per named class, property or concept that
+  carries a label: the chosen label and definition, which property each came
+  from, and the source key, version and licence.
+
+Entities keep the IRI their publisher minted. This index states its own
+properties about them and never restates or re-licenses another publisher's
+vocabulary. Only the catalogue resources and the small vocabulary under
+`{base}vocab#` are minted here, where the base is `MATSCI_ONT_BASE_URL`.
+
+Label precedence is `skos:prefLabel` then `rdfs:label`. Definition
+precedence is `skos:definition`, then IAO 0000115, then the EMMO
+elucidation property, then `rdfs:comment`. Within a property, English is
+preferred, then any tagged language, then an untagged literal. An entity
+with no label is skipped, because nothing could find it. An entity with a
+label and no definition is kept: the NIST vocabulary is a term list with no
+definitions at all, and it is 993 of the entries.
+
+Nothing in either graph reads the clock. A wall-clock stamp would make two
+builds of one manifest differ, so the ingest time is recorded in
+`build/ingest-report.json`, which is not part of the store.
 
 ## Comparing two builds
 

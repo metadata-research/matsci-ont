@@ -12,6 +12,7 @@ import { ROOT, jenaEnvironment } from "./lib/tools.mjs";
 import { loadManifest } from "./lib/manifest.mjs";
 import { startFuseki, stopFuseki, query } from "./lib/fuseki.mjs";
 import { graphCounts, dumpBlinded, graphsIsomorphic } from "./lib/compare.mjs";
+import { graphIris, baseUrl } from "./lib/derive.mjs";
 
 const STORE = join(ROOT, "build/tdb2");
 const STAGING = join(ROOT, "build/tdb2.new");
@@ -56,7 +57,12 @@ record(
   strays === 0 ? "default graph empty" : `${strays} quads outside any named graph`,
 );
 
-const declared = new Set(manifest.map((entry) => entry.graphIri));
+const graphs = graphIris();
+const declared = new Set([
+  ...manifest.map((entry) => entry.graphIri),
+  graphs.catalog,
+  graphs.definitions,
+]);
 const unexpected = [...counts.keys()].filter(
   (graph) => graph !== DEFAULT_GRAPH && !declared.has(graph),
 );
@@ -64,6 +70,12 @@ record(
   "the store holds no undeclared graph",
   unexpected.length === 0,
   unexpected.length > 0 ? unexpected.join("\n") : `${declared.size} declared graphs`,
+);
+
+record(
+  "both derived graphs are present",
+  counts.get(graphs.catalog) > 0 && counts.get(graphs.definitions) > 0,
+  `catalog ${counts.get(graphs.catalog) ?? 0}, definitions ${counts.get(graphs.definitions) ?? 0} triples`,
 );
 
 let server;
@@ -93,6 +105,73 @@ try {
     unresolved.length > 0 ? unresolved.join("\n") : `${fixtures.entities.length} fixtures`,
   );
 
+  const ont = `${baseUrl()}vocab#`;
+
+  // One catalogue resource per source, no more and no fewer.
+  const catalogued = await query(
+    server.base,
+    `SELECT ?key (COUNT(?s) AS ?n) WHERE {
+       GRAPH <${graphs.catalog}> { ?s <${ont}sourceKey> ?key }
+     } GROUP BY ?key`,
+  );
+  const catalogueRows = catalogued.ok
+    ? new Map(
+        JSON.parse(catalogued.text).results.bindings.map((b) => [b.key.value, Number(b.n.value)]),
+      )
+    : new Map();
+  const wrongCatalogue = manifest
+    .filter((entry) => catalogueRows.get(entry.key) !== 1)
+    .map((entry) => `${entry.key}: ${catalogueRows.get(entry.key) ?? 0}`);
+  const extraCatalogue = [...catalogueRows.keys()].filter(
+    (key) => !manifest.some((entry) => entry.key === key),
+  );
+  record(
+    "every source has exactly one catalogue resource",
+    wrongCatalogue.length === 0 && extraCatalogue.length === 0,
+    [...wrongCatalogue, ...extraCatalogue.map((k) => `${k}: not in the manifest`)].join("\n") ||
+      `${catalogueRows.size} sources`,
+  );
+
+  // A definition served without its licence cannot be passed on safely, and
+  // a source whose licence forbids republication must not be in the store
+  // at all.
+  const unlicensed = await query(
+    server.base,
+    `SELECT (COUNT(*) AS ?n) WHERE {
+       GRAPH <${graphs.definitions}> { ?s <${ont}label> ?label }
+       FILTER NOT EXISTS { GRAPH <${graphs.definitions}> { ?s <${ont}license> ?license } }
+     }`,
+  );
+  const unlicensedCount = unlicensed.ok
+    ? Number(JSON.parse(unlicensed.text).results.bindings[0].n.value)
+    : -1;
+  const forbidden = manifest.filter((entry) => !entry.republishable).map((entry) => entry.key);
+  record(
+    "every definitions entry names a licence",
+    unlicensedCount === 0 && forbidden.length === 0,
+    forbidden.length > 0
+      ? `non-republishable sources in the manifest: ${forbidden.join(", ")}`
+      : `${unlicensedCount} entries without a licence`,
+  );
+
+  // The point of holding several sources at once: one term, several
+  // independent vocabularies, in one answer.
+  const crossSource = await query(
+    server.base,
+    `SELECT ?key WHERE {
+       GRAPH <${graphs.definitions}> { ?s <${ont}label> ?label ; <${ont}sourceKey> ?key }
+       FILTER(LCASE(STR(?label)) = "sintering")
+     } GROUP BY ?key`,
+  );
+  const sources = crossSource.ok
+    ? JSON.parse(crossSource.text).results.bindings.map((b) => b.key.value)
+    : [];
+  record(
+    "a known term is found in more than one source",
+    sources.length > 1,
+    `sintering: ${sources.join(", ") || "no source"}`,
+  );
+
   // Federated query is closed, so a SERVICE clause cannot make the store
   // fetch a URL for whoever sent the query.
   const service = await query(
@@ -110,10 +189,9 @@ try {
 
 if (withDeterminism) {
   await rm(STAGING, { recursive: true, force: true });
-  const keys = manifest.map((entry) => entry.key).join(",");
   const rebuild = spawnSync(
     process.execPath,
-    [join(ROOT, "pipeline/ingest.mjs"), `--only=${keys}`],
+    [join(ROOT, "pipeline/ingest.mjs"), "--no-swap"],
     { cwd: ROOT, encoding: "utf8", maxBuffer: 1024 * 1024 * 64 },
   );
 

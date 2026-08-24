@@ -14,6 +14,8 @@ import { access } from "node:fs/promises";
 import { join } from "node:path";
 import { ROOT, jenaEnvironment, runJena, hashFile, download } from "./lib/tools.mjs";
 import { loadManifest, artifactsOf, extensionFor } from "./lib/manifest.mjs";
+import { graphCounts } from "./lib/compare.mjs";
+import { graphIris, catalogTurtle, definitionsTurtle, readEntities } from "./lib/derive.mjs";
 
 const CACHE_DIR = join(ROOT, "cache");
 const BUILD_DIR = join(ROOT, "build");
@@ -23,12 +25,18 @@ const STAGING = join(BUILD_DIR, "tdb2.new");
 const options = {
   only: null,
   keepGoing: false,
+  // A full build, derived graphs included, left in the staging location.
+  // This is what a comparison run wants: --only skips deriving, so a store
+  // built that way is not comparable with a complete one.
+  noSwap: false,
 };
 for (const argument of process.argv.slice(2)) {
   if (argument.startsWith("--only=")) {
     options.only = new Set(argument.slice("--only=".length).split(","));
   } else if (argument === "--keep-going") {
     options.keepGoing = true;
+  } else if (argument === "--no-swap") {
+    options.noSwap = true;
   } else {
     console.error(`unknown option ${argument}`);
     process.exit(2);
@@ -139,10 +147,56 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
+// The two graphs MatSci-ONT derives from what it just loaded. A partial
+// selection would describe only the sources it built, so they are emitted
+// only for a full run.
+const derived = [];
+if (!options.only) {
+  const work = join(BUILD_DIR, "derive-work");
+  await mkdir(work, { recursive: true });
+  const counts = await graphCounts(environment, STAGING, work);
+  const graphs = graphIris();
+
+  const catalog = catalogTurtle(entries, counts);
+  const definitions = definitionsTurtle(entries, await readEntities(
+    environment,
+    STAGING,
+    join(work, "entities.rq"),
+  ));
+
+  for (const [name, graphIri, turtle] of [
+    ["catalog", graphs.catalog, catalog],
+    ["definitions", graphs.definitions, definitions.turtle],
+  ]) {
+    const path = join(work, `${name}.ttl`);
+    await writeFile(path, turtle);
+    // The derived graphs pass the same validation gate as a source.
+    const validation = runJena(environment, "riot", ["--validate", path]);
+    if (validation.status !== 0 || validation.stderr.includes("WARN")) {
+      console.error(`FAIL: the ${name} graph did not validate\n${validation.stderr}`);
+      console.error("the previous store is unchanged");
+      process.exit(1);
+    }
+    const load = runJena(environment, "tdb2.tdbloader", [
+      `--loc=${STAGING}`,
+      `--graph=${graphIri}`,
+      path,
+    ]);
+    if (load.status !== 0) {
+      console.error(`FAIL: the ${name} graph did not load\n${load.stderr}`);
+      process.exit(1);
+    }
+    derived.push({ name, graphIri });
+  }
+  process.stderr.write(`derived catalog and ${definitions.entries} definition entries\n`);
+}
+
 // A partial selection would otherwise publish a store missing every source it
 // did not build.
-if (options.only) {
-  process.stderr.write(`\nbuilt ${STAGING} (partial selection, not swapped into place)\n`);
+if (options.only || options.noSwap) {
+  process.stderr.write(
+    `\nbuilt ${STAGING} (${options.only ? "partial selection" : "no swap requested"})\n`,
+  );
   process.exit(0);
 }
 
@@ -153,6 +207,7 @@ const report = {
   builtAt: new Date().toISOString(),
   jena: environment.pins.jena.version,
   sources: loaded,
+  derived,
 };
 await writeFile(join(BUILD_DIR, "ingest-report.json"), `${JSON.stringify(report, null, 2)}\n`);
 
