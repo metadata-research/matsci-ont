@@ -33,23 +33,25 @@ The store is a pure function of the manifest. The store is disposable, is
 never backed up, and is rebuilt from the manifest at any time. Each source
 is one JSON file in `manifest/` with these fields:
 
-| Field            | Meaning                                                                                                      |
-| ---------------- | ------------------------------------------------------------------------------------------------------------ |
-| `key`            | Short stable identifier, matches the file name                                                               |
-| `kind`           | `external-snapshot` for a pinned ontology, `matsci-sam-mirror` for a mirrored dataset                        |
-| `title`          | Human-readable source name                                                                                   |
-| `ontologyIri`    | Canonical ontology IRI minted by the publisher                                                               |
-| `graphIri`       | Named graph the source loads into, normally the ontology IRI                                                 |
-| `version`        | Version label of the pinned release                                                                          |
-| `downloadUrl`    | Immutable URL to a released artifact, never a branch                                                         |
-| `sha256`         | SHA-256 of the artifact bytes                                                                                |
-| `format`         | `ttl`, `rdfxml`, `ntriples`, or `jsonld`                                                                     |
-| `license`        | SPDX identifier                                                                                              |
-| `republishable`  | Whether serving the content publicly is permitted                                                            |
-| `modules`        | Optional list of pinned module URLs with their own hashes, each naming the `importIri` the main file imports |
-| `reason`         | Optional, false to skip OWL reasoning over the source                                                        |
-| `importsToEmpty` | Optional list of import IRIs resolved to an empty ontology, for ontologies this manifest does not pin        |
-| `notes`          | Optional free text                                                                                           |
+| Field            | Meaning                                                                                                          |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `key`            | Short stable identifier, matches the file name                                                                   |
+| `kind`           | `external-snapshot` for a pinned ontology, `matsci-sam-mirror` for a mirrored dataset                            |
+| `title`          | Human-readable source name                                                                                       |
+| `ontologyIri`    | Canonical ontology IRI minted by the publisher                                                                   |
+| `graphIri`       | Named graph the source loads into, normally the ontology IRI                                                     |
+| `version`        | Version label of the pinned release                                                                              |
+| `downloadUrl`    | Immutable URL to a released artifact, never a branch                                                             |
+| `sha256`         | SHA-256 of the artifact bytes                                                                                    |
+| `format`         | `ttl`, `rdfxml`, `ntriples`, or `jsonld`                                                                         |
+| `license`        | SPDX identifier                                                                                                  |
+| `republishable`  | Whether serving the content publicly is permitted                                                                |
+| `modules`        | Optional list of pinned module URLs with their own hashes, each naming its `importIri` for the reasoning catalog |
+| `importIri`      | Optional import IRI of the main file itself, for when other modules or entries import it                         |
+| `importsFrom`    | Optional list of entry keys whose pinned files join this entry's reasoning catalog without loading here          |
+| `reason`         | Optional, false to skip OWL reasoning over the source                                                            |
+| `importsToEmpty` | Optional list of import IRIs resolved to an empty ontology, for ontologies this manifest does not pin            |
+| `notes`          | Optional free text                                                                                               |
 
 Two rules are enforced, and the check script refuses an entry that breaks
 either: every entry names a license, and a pinned source names a digest.
@@ -135,9 +137,18 @@ The reasoner entails everything a source asserts, so most of what it returns
 is a restatement. An inferred graph keeps only what reasoning added: pairs
 the sources do not already state. That is what lets a page mark a placement
 as inferred and be right. Of the 1,581 pairs PMDco entails, 1,466 are
-already asserted and 115 are new. CHAMEO adds 2, and would add far more
-with the EMMO ontologies it imports, which this manifest does not yet pin.
-MDO adds none.
+already asserted and 115 are new. CHAMEO, reasoned against the pinned EMMO
+closure, entails 2,137 and adds 86; before the closure was pinned it could
+add only 2. EMMO itself adds 82 of 1,924 entailed. MDO adds none. The two
+counts overlap by design: all 82 of EMMO's new pairs also appear in
+CHAMEO's 86, because each source's inferred graph stands alone and CHAMEO's
+inferred view needs the derived EMMO placements its ancestors sit on. The
+pairs only CHAMEO contributes number 4.
+
+A source can also reason through another entry's pins. `importsFrom` names
+manifest entries whose files join the reasoning catalog without loading
+into the referencing graph, which is how CHAMEO sees the full EMMO closure
+while its own graph holds only `chameo.ttl`.
 
 Imports are never fetched. A module the manifest pins is named by its
 `importIri` and mapped to the pinned file. An import to an ontology this

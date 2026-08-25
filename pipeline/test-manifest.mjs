@@ -134,7 +134,136 @@ expect(
       }
     ],
     importsToEmpty: ["https://x/m"]
-  }).some((p) => p.includes("mapped both"))
+  }).some((p) => p.includes("mapped more than once"))
+)
+expect(
+  "a main-file IRI repeated as a module is the same collision",
+  problems({
+    ...pinned,
+    importIri: "https://x/m",
+    modules: [
+      {
+        url: "https://x/m.ttl",
+        sha256: "c".repeat(64),
+        importIri: "https://x/m"
+      }
+    ]
+  }).some((p) => p.includes("mapped more than once"))
+)
+
+// Reasoning through another entry's pinned files. The files never load
+// into the referencing graph, so the catalog they join must be complete:
+// a referenced artifact with no import IRI is part of the closure that
+// would resolve nowhere.
+const closureMain = {
+  ...pinned,
+  key: "closure",
+  graphIri: "https://example.org/closure",
+  importIri: "https://example.org/1.0/closure",
+  modules: [
+    {
+      url: "https://x/m.ttl",
+      sha256: "c".repeat(64),
+      importIri: "https://example.org/1.0/m"
+    }
+  ]
+}
+const consumer = {
+  ...pinned,
+  key: "consumer",
+  graphIri: "https://example.org/consumer",
+  importsFrom: ["closure"]
+}
+const across = (entries) =>
+  checkAcrossEntries(
+    entries,
+    entries.map((e) => `${e.key}.json`)
+  )
+expect(
+  "an entry may reason through another entry's pins",
+  across([closureMain, consumer]).length === 0,
+  across([closureMain, consumer]).join("; ")
+)
+expect(
+  "an entry-level import IRI must be an IRI",
+  problems({ ...pinned, importIri: "not-an-iri" }).length > 0
+)
+expect(
+  "importsFrom naming no entry fails",
+  across([{ ...consumer, importsFrom: ["nothing"] }]).length === 1
+)
+expect(
+  "importsFrom naming itself fails",
+  across([{ ...consumer, importsFrom: ["consumer"] }]).length === 1
+)
+expect(
+  "importsFrom naming a mirror fails",
+  across([mirror, { ...consumer, importsFrom: ["demo"] }]).length === 1
+)
+expect(
+  "a referenced entry whose main file has no import IRI fails",
+  across([withOut(closureMain, "importIri"), consumer]).some((problem) =>
+    problem.includes("no import IRI")
+  )
+)
+expect(
+  "importsFrom may not name an entry twice",
+  problems({ ...consumer, importsFrom: ["closure", "closure"] }).some((p) =>
+    p.includes("twice")
+  )
+)
+expect(
+  "importsFrom on a source that is not reasoned is refused",
+  problems({ ...consumer, reason: false }).some((p) =>
+    p.includes("not reasoned")
+  )
+)
+expect(
+  "a cleared source may not reason through an uncleared one",
+  across([
+    { ...closureMain, license: UNDECLARED, republishable: false },
+    consumer
+  ]).some((p) => p.includes("publication build excludes")),
+  across([
+    { ...closureMain, license: UNDECLARED, republishable: false },
+    consumer
+  ]).join("; ")
+)
+expect(
+  "one IRI inherited from two entries is a collision",
+  across([
+    closureMain,
+    {
+      ...closureMain,
+      key: "closure2",
+      graphIri: "https://example.org/closure2",
+      importIri: "https://example.org/1.0/other",
+      modules: closureMain.modules
+    },
+    { ...consumer, importsFrom: ["closure", "closure2"] }
+  ]).some((p) => p.includes("inherited from both")),
+  across([
+    closureMain,
+    {
+      ...closureMain,
+      key: "closure2",
+      graphIri: "https://example.org/closure2",
+      importIri: "https://example.org/1.0/other",
+      modules: closureMain.modules
+    },
+    { ...consumer, importsFrom: ["closure", "closure2"] }
+  ]).join("; ")
+)
+expect(
+  "an IRI mapped here and inherited is a collision",
+  across([
+    closureMain,
+    { ...consumer, importsToEmpty: ["https://example.org/1.0/m"] }
+  ]).some((problem) => problem.includes("inherited")),
+  across([
+    closureMain,
+    { ...consumer, importsToEmpty: ["https://example.org/1.0/m"] }
+  ]).join("; ")
 )
 
 // Two sources loading into one graph would overwrite each other.

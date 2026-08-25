@@ -142,6 +142,44 @@ export function checkEntry(entry, file) {
       "must be boolean when present"
     )
   }
+  // The import IRI of the entry's own main file. Needed when anything can
+  // import that file: another module of the same entry, or another entry
+  // reasoning through importsFrom. Without it the catalog cannot name the
+  // main file and the import fails at the dead proxy.
+  if (entry.importIri !== undefined) {
+    need("importIri", isAbsoluteIri(entry.importIri), "must be an absolute IRI")
+  }
+  // Entries whose pinned files join this entry's reasoning catalog. The
+  // files are used for reasoning only and are never loaded into this
+  // entry's graph, which is what keeps another publisher's content out of
+  // this source's attribution. The referenced keys are checked across the
+  // manifest, not here.
+  if (entry.importsFrom !== undefined) {
+    need("importsFrom", Array.isArray(entry.importsFrom), "must be a list")
+    if (Array.isArray(entry.importsFrom)) {
+      entry.importsFrom.forEach((key, i) => {
+        need(
+          `importsFrom[${i}]`,
+          typeof key === "string" && key.length > 0,
+          "must be an entry key"
+        )
+      })
+      const onceEach = new Set(entry.importsFrom)
+      need(
+        "importsFrom",
+        onceEach.size === entry.importsFrom.length,
+        "must not name an entry twice"
+      )
+    }
+    // The field only feeds the reasoning catalog, so on a source that is
+    // never reasoned it is inert: it would read as protection while
+    // providing none.
+    need(
+      "importsFrom",
+      entry.reason !== false && entry.kind !== "matsci-sam-mirror",
+      "has no effect on a source that is not reasoned"
+    )
+  }
   if (entry.reason !== undefined) {
     need(
       "reason",
@@ -202,16 +240,13 @@ export function checkEntry(entry, file) {
   // ontology in place of a pinned module.
   const mapped = new Set()
   const twice = new Set()
-  for (const iri of [
-    ...(entry.modules ?? []).map((m) => m?.importIri).filter(Boolean),
-    ...(entry.importsToEmpty ?? [])
-  ]) {
+  for (const iri of ownMappedIris(entry)) {
     if (mapped.has(iri)) twice.add(iri)
     mapped.add(iri)
   }
   for (const iri of twice) {
     errors.push(
-      `${file}: ${iri} is mapped both to a module and to the empty ontology`
+      `${file}: ${iri} is mapped more than once in this entry's reasoning catalog`
     )
   }
   return errors
@@ -230,17 +265,122 @@ export function extensionFor(format) {
   return extension
 }
 
-// A rule about the set rather than about one entry: two sources loading
-// into one graph would overwrite each other's content in the store.
+// The import IRIs an entry maps in its own catalog: its main file, its
+// modules, and its imports resolved to the empty ontology.
+function ownMappedIris(entry) {
+  return [
+    ...(entry.importIri ? [entry.importIri] : []),
+    ...(entry.modules ?? []).map((m) => m?.importIri).filter(Boolean),
+    ...(entry.importsToEmpty ?? [])
+  ]
+}
+
+// The pinned artifacts of an entry as catalog mappings, for an entry that
+// reasons through importsFrom. Every artifact must carry an import IRI, so
+// nothing the closure needs resolves nowhere; the cross-entry check below
+// enforces that before a build starts.
+export function catalogMappingsOf(entry) {
+  const mappings = []
+  if (entry.importIri) {
+    mappings.push({
+      iri: entry.importIri,
+      sha256: entry.sha256,
+      format: entry.format
+    })
+  }
+  for (const module of entry.modules ?? []) {
+    if (module.importIri) {
+      mappings.push({
+        iri: module.importIri,
+        sha256: module.sha256,
+        format: module.format ?? entry.format
+      })
+    }
+  }
+  return mappings
+}
+
+// Rules about the set rather than about one entry: two sources loading
+// into one graph would overwrite each other's content in the store, and an
+// importsFrom that names a missing or unusable entry would fail deep in
+// the reasoning step rather than at the gate.
 export function checkAcrossEntries(entries, files) {
   const problems = []
   const seen = new Map()
+  const byKey = new Map(entries.map((entry) => [entry?.key, entry]))
   entries.forEach((entry, index) => {
     if (!entry?.graphIri) return
     const prior = seen.get(entry.graphIri)
     if (prior)
       problems.push(`${files[index]}: graphIri already used by ${prior}`)
     seen.set(entry.graphIri, files[index])
+  })
+  entries.forEach((entry, index) => {
+    for (const key of entry?.importsFrom ?? []) {
+      const referenced = byKey.get(key)
+      if (!referenced) {
+        problems.push(`${files[index]}: importsFrom names no entry ${key}`)
+        continue
+      }
+      if (key === entry.key) {
+        problems.push(`${files[index]}: importsFrom must not name itself`)
+        continue
+      }
+      if (referenced.kind === "matsci-sam-mirror") {
+        problems.push(
+          `${files[index]}: importsFrom names the mirror ${key}, whose content is not a pinned artifact`
+        )
+        continue
+      }
+      // An artifact with no import IRI cannot be named in the catalog, so
+      // part of the closure would resolve nowhere and reasoning would fail
+      // at the dead proxy instead of here.
+      const unnamed =
+        (referenced.importIri ? 0 : 1) +
+        (referenced.modules ?? []).filter((m) => !m?.importIri).length
+      if (unnamed > 0) {
+        problems.push(
+          `${files[index]}: importsFrom ${key}, but ${unnamed} of its artifact(s) carry no import IRI for the catalog`
+        )
+      }
+      // A cleared source reasoning through an uncleared one could never be
+      // rebuilt from a publication build, which excludes the reference and
+      // fails deep in reasoning after the whole fetch and load.
+      if (entry.republishable && referenced.republishable === false) {
+        problems.push(
+          `${files[index]}: importsFrom ${key}, which a publication build excludes, so the publishable store could not be reasoned`
+        )
+      }
+      // An IRI mapped by both entries would resolve to whichever the
+      // catalog wrote last, so the collision is refused rather than raced.
+      const inherited = new Set(
+        catalogMappingsOf(referenced).map((mapping) => mapping.iri)
+      )
+      for (const iri of ownMappedIris(entry)) {
+        if (inherited.has(iri)) {
+          problems.push(
+            `${files[index]}: ${iri} is mapped here and inherited from ${key}`
+          )
+        }
+      }
+    }
+    // The same rule between the referenced entries: two of them mapping one
+    // IRI would collide in the assembled catalog just as surely, and until
+    // this check that collision surfaced only when reasoning threw.
+    const inheritedFrom = new Map()
+    for (const key of entry?.importsFrom ?? []) {
+      const referenced = byKey.get(key)
+      if (!referenced) continue
+      for (const mapping of catalogMappingsOf(referenced)) {
+        const prior = inheritedFrom.get(mapping.iri)
+        if (prior && prior !== key) {
+          problems.push(
+            `${files[index]}: ${mapping.iri} is inherited from both ${prior} and ${key}`
+          )
+        }
+        inheritedFrom.set(mapping.iri, key)
+      }
+    }
   })
   return problems
 }

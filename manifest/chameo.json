@@ -10,19 +10,6 @@
   "format": "ttl",
   "license": "CC-BY-4.0",
   "republishable": true,
-  "notes": "Release 1.0.3 (2026-08-03) publishes no assets, so the pin is raw at the tag. Not self-contained: the file declares owl:imports on 12 EMMO 1.0.3 modules, which the pipeline does not resolve (manifest rule). The snapshot loads standalone, and the EMMO closure arrives with the EMMO milestone (plan Phase 7). The inferred variants at the tag are stale (versionIRI still 1.0.2) and were rejected. versionIRI https://w3id.org/emmo/domain/characterisation-methodology/1.0.3/chameo. License from the dcterms:license header annotation and the README, no LICENSE file in the repository.",
-  "importsToEmpty": [
-    "https://w3id.org/emmo/1.0.3/disciplines/computerscience",
-    "https://w3id.org/emmo/1.0.3/disciplines/isq",
-    "https://w3id.org/emmo/1.0.3/disciplines/manufacturing",
-    "https://w3id.org/emmo/1.0.3/disciplines/math",
-    "https://w3id.org/emmo/1.0.3/disciplines/metrology",
-    "https://w3id.org/emmo/1.0.3/disciplines/models",
-    "https://w3id.org/emmo/1.0.3/perspectives/holistic",
-    "https://w3id.org/emmo/1.0.3/perspectives/persistence",
-    "https://w3id.org/emmo/1.0.3/perspectives/semiotics",
-    "https://w3id.org/emmo/1.0.3/reference/data",
-    "https://w3id.org/emmo/1.0.3/reference/persholistic",
-    "https://w3id.org/emmo/1.0.3/reference/workflow"
-  ]
+  "notes": "Release 1.0.3 (2026-08-03) publishes no assets, so the pin is raw at the tag. Not self-contained: the file declares owl:imports on 12 EMMO 1.0.3 modules. Since the EMMO milestone (plan Phase 7) those resolve through importsFrom to the pinned emmo entry, so the reasoner sees the full closure while this graph still holds only chameo.ttl itself. Before that they resolved to the empty ontology and the no-EMMO build entailed 211 pairs. The inferred variants at the tag are stale (versionIRI still 1.0.2) and were rejected. versionIRI https://w3id.org/emmo/domain/characterisation-methodology/1.0.3/chameo. License from the dcterms:license header annotation and the README, no LICENSE file in the repository.",
+  "importsFrom": ["emmo"]
 }

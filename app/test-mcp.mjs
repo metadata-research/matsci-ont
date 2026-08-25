@@ -8,10 +8,18 @@
 import { join } from "node:path"
 import { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js"
-import { ROOT } from "../shared/paths.mjs"
+import { readdir } from "node:fs/promises"
+import { ROOT, MANIFEST_DIR } from "../shared/paths.mjs"
 import { startFuseki, stopFuseki } from "../shared/fuseki.mjs"
 
 const PORT = 3198
+// The store is a function of the manifest, so the number of sources the
+// endpoint must list is the number of manifest entries, not a literal that
+// silently goes stale when a source is added.
+const expectedSources = (await readdir(MANIFEST_DIR)).filter((f) =>
+  f.endsWith(".json")
+).length
+
 const failures = []
 function expect(label, condition, detail) {
   process.stdout.write(`${condition ? "pass" : "FAIL"}  ${label}\n`)
@@ -72,7 +80,7 @@ try {
   )
   expect(
     "list_sources returns every source with its licence",
-    sources.sources.length === 9 &&
+    sources.sources.length === expectedSources &&
       sources.sources.every((source) => source.license),
     sources.sources
       .map((source) => `${source.key} ${source.license}`)

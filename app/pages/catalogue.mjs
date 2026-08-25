@@ -72,7 +72,7 @@ export async function sourcePage(key, inferred) {
         ? '<span class="mark inferred" title="Inferred placement">inferred</span>'
         : "",
       node.externalParents?.length
-        ? `<span class="mark" title="Parent not in this store: ${attr(node.externalParents.join(", "))}">external parent</span>`
+        ? `<span class="mark" title="Parent outside this source: ${attr(node.externalParents.join(", "))}">external parent</span>`
         : ""
     ]
       .filter(Boolean)

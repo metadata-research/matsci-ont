@@ -16,7 +16,11 @@ import { writeFile, mkdir, readFile, rm } from "node:fs/promises"
 import { join } from "node:path"
 import { robotEnvironment, runRobot, runJena } from "../shared/tools.mjs"
 import { ROOT } from "../shared/paths.mjs"
-import { artifactsOf, extensionFor } from "./lib/manifest.mjs"
+import {
+  artifactsOf,
+  extensionFor,
+  catalogMappingsOf
+} from "./lib/manifest.mjs"
 import { inferredGraphFor } from "../shared/vocabulary.mjs"
 
 const CATALOG_DIR = join(ROOT, "manifest/catalogs")
@@ -78,8 +82,14 @@ export function shouldReason(entry) {
 }
 
 // Returns {key, graphIri, path, pairs} for a reasoned source, or throws with
-// the operator-facing reason.
-export async function reasonSource(environment, entry, workDirectory) {
+// the operator-facing reason. entriesByKey resolves importsFrom, and may be
+// omitted by a caller whose entry does not use it.
+export async function reasonSource(
+  environment,
+  entry,
+  workDirectory,
+  entriesByKey = new Map()
+) {
   await mkdir(workDirectory, { recursive: true })
   const artifacts = artifactsOf(entry)
   const main = cachePath(artifacts[0])
@@ -97,7 +107,30 @@ export async function reasonSource(environment, entry, workDirectory) {
       `${entry.key} has ${unmapped.length} module(s) without importIri, which reasoning would silently omit`
     )
   }
+  // Files another entry pins, joined into this catalog for reasoning only.
+  // They are never loaded into this entry's graph: what a source graph
+  // holds and what its reasoner reads are separate questions, and this is
+  // the seam between them.
+  const inherited = []
+  for (const key of entry.importsFrom ?? []) {
+    const referenced = entriesByKey.get(key)
+    if (!referenced) {
+      throw new Error(
+        `${entry.key} reasons through importsFrom ${key}, which is not among the sources of this build. It may be missing from the manifest, dropped by --only, or excluded from a publication build; reasoning without it would silently use a smaller closure.`
+      )
+    }
+    inherited.push(
+      ...catalogMappingsOf(referenced).map((mapping) => ({
+        iri: mapping.iri,
+        path: cachePath(mapping)
+      }))
+    )
+  }
   const mappings = [
+    // The entry's own main file, which other modules of the same closure
+    // may import. Leaving it out resolved every module except the one the
+    // entry happens to lead with, which the dead proxy refused.
+    ...(entry.importIri ? [{ iri: entry.importIri, path: main }] : []),
     ...(entry.modules ?? []).map((module) => ({
       iri: module.importIri,
       path: cachePath({
@@ -105,7 +138,8 @@ export async function reasonSource(environment, entry, workDirectory) {
         format: module.format ?? entry.format
       })
     })),
-    ...(entry.importsToEmpty ?? []).map((iri) => ({ iri, path: EMPTY }))
+    ...(entry.importsToEmpty ?? []).map((iri) => ({ iri, path: EMPTY })),
+    ...inherited
   ]
   const seen = new Set()
   for (const mapping of mappings) {
@@ -125,9 +159,18 @@ export async function reasonSource(environment, entry, workDirectory) {
   }
 
   // A source with pinned modules is merged with them first, so the
-  // reasoner sees the closure the publisher intended.
+  // reasoner sees the closure the publisher intended. Every module is an
+  // explicit input rather than a resolution of the main file's imports:
+  // a closure can have several roots and no file that imports them all,
+  // and following one file's imports would silently reason over a part of
+  // it. Merging a file its imports also reach changes nothing, since an
+  // ontology is a set of axioms.
   if ((entry.modules ?? []).length > 0) {
-    args.push("merge", "--catalog", catalogPath, "--input", main, "reason")
+    args.push("merge", "--catalog", catalogPath, "--input", main)
+    for (const artifact of artifacts.slice(1)) {
+      args.push("--input", cachePath(artifact))
+    }
+    args.push("reason")
   } else {
     args.push("reason", "--input", main)
     if (catalogPath) args.push("--catalog", catalogPath)
@@ -281,6 +324,7 @@ async function reasonEach(
   workDirectory,
   records
 ) {
+  const byKey = new Map(entries.map((entry) => [entry.key, entry]))
   for (const entry of entries) {
     if (!shouldReason(entry)) {
       records.push({
@@ -291,7 +335,7 @@ async function reasonEach(
       continue
     }
     process.stderr.write(`reasoning ${entry.key}\n`)
-    const result = await reasonSource(robot, entry, workDirectory)
+    const result = await reasonSource(robot, entry, workDirectory, byKey)
 
     // Keep only what reasoning added.
     // Across every source graph, not only this one. An inferred pair can

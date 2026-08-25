@@ -15,14 +15,32 @@
       "iri": "https://w3id.org/emmo/domain/characterisation-methodology/chameo#FatigueTesting",
       "source": "chameo",
       "expectLabel": "FatigueTesting"
+    },
+    {
+      "iri": "https://w3id.org/emmo#EMMO_4207e895_8b83_4318_996a_72cfb32acd94",
+      "source": "emmo",
+      "expectLabel": "Material"
     }
   ],
   "reasoning": {
-    "comment": "newPairs is what HermiT adds once the pairs the source already asserts are subtracted; entailedPairs is what it derived before that subtraction. A source may legitimately add none, as MDO does. Sources in skipped must record in the catalogue why they were not reasoned.",
+    "comment": "newPairs is what HermiT adds once the pairs any loaded source already asserts are subtracted; entailedPairs is what it derived before that subtraction. A source may legitimately add none, as MDO does. The chameo numbers are measured against the full EMMO closure (Phase 7): the no-EMMO build entailed 211. The chameo and emmo counts overlap by design, since each inferred graph stands alone: all 82 of emmo's new pairs also appear in chameo's 86, and the pairs only chameo contributes number 4. Sources in skipped must record in the catalogue why they were not reasoned.",
     "sources": {
-      "pmdco": { "newPairs": 115, "entailedPairs": 1581 },
-      "chameo": { "newPairs": 2, "entailedPairs": 211 },
-      "mdo": { "newPairs": 0, "entailedPairs": 13 }
+      "pmdco": {
+        "newPairs": 115,
+        "entailedPairs": 1581
+      },
+      "chameo": {
+        "newPairs": 86,
+        "entailedPairs": 2137
+      },
+      "mdo": {
+        "newPairs": 0,
+        "entailedPairs": 13
+      },
+      "emmo": {
+        "newPairs": 82,
+        "entailedPairs": 1924
+      }
     },
     "skipped": ["nist-imrr"]
   },

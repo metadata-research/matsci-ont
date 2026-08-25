@@ -121,6 +121,35 @@ ex:x a ex:A, ex:B .
   )
 }
 
+// importsFrom names another manifest entry whose pins join this catalog.
+// A key that resolves to nothing must fail before any file is touched,
+// because the reasoner would otherwise see a smaller closure and say so
+// nowhere. The positive path is exercised end to end by the build itself
+// and pinned by the pair counts in fixtures.json.
+{
+  let message = ""
+  try {
+    await reasonSource(
+      environment,
+      {
+        key: "consumer",
+        format: "ttl",
+        sha256: "a".repeat(64),
+        downloadUrl: "https://x/c.ttl",
+        importsFrom: ["ghost"]
+      },
+      work
+    )
+  } catch (error) {
+    message = error.message
+  }
+  expect(
+    "importsFrom naming an absent entry fails by name",
+    message.includes("ghost") && message.includes("not among the sources"),
+    message.slice(0, 120)
+  )
+}
+
 await rm(root, { recursive: true, force: true })
 
 if (failures.length > 0) {

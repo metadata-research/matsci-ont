@@ -23,9 +23,9 @@ Three markers appear in the tree where they apply:
 
 - A repeat marker on a class already shown under another parent. The
   class expands only at its first appearance.
-- An external-parent marker on a class whose only parent is not in the
-  store, for example a CHAMEO class below an EMMO class that is not yet
-  loaded.
+- An external-parent marker on a class whose parent belongs to another
+  source, for example a CHAMEO class below an EMMO class. Following the
+  link shows the parent on its own source's terms.
 - An inferred marker on a placement contributed by the reasoner, visible
   when the inferred view is selected on a source that has one.
 

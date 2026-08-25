@@ -1,0 +1,137 @@
+{
+  "key": "emmo",
+  "kind": "external-snapshot",
+  "title": "EMMO, the Elementary Multiperspective Material Ontology (CHAMEO closure)",
+  "ontologyIri": "https://w3id.org/emmo",
+  "graphIri": "https://w3id.org/emmo",
+  "version": "1.0.3",
+  "downloadUrl": "https://raw.githubusercontent.com/emmo-repo/EMMO/1.0.3/disciplines/computerscience.ttl",
+  "sha256": "56e3a2ba0ed96ebf95d5f493ce8521f76151009404bac69e4d91451bff303c9f",
+  "importIri": "https://w3id.org/emmo/1.0.3/disciplines/computerscience",
+  "format": "ttl",
+  "license": "CC-BY-4.0",
+  "republishable": true,
+  "modules": [
+    {
+      "url": "https://raw.githubusercontent.com/emmo-repo/EMMO/1.0.3/disciplines/isq.ttl",
+      "sha256": "d92c0f4e6ea419149b0015f19177d48f7b7d4639efd57d5a1c515ac0a4213e70",
+      "importIri": "https://w3id.org/emmo/1.0.3/disciplines/isq"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/emmo-repo/EMMO/1.0.3/disciplines/manufacturing.ttl",
+      "sha256": "e70a9d5516f87c52c298cc7567049f425253a2a7054f0fdb08b4011fc0b796bd",
+      "importIri": "https://w3id.org/emmo/1.0.3/disciplines/manufacturing"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/emmo-repo/EMMO/1.0.3/disciplines/math.ttl",
+      "sha256": "8125580d0b9996b0b842e73bdd1151c5357c0ddbe9a67a36fcaa1484e23b4dc8",
+      "importIri": "https://w3id.org/emmo/1.0.3/disciplines/math"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/emmo-repo/EMMO/1.0.3/disciplines/metrology.ttl",
+      "sha256": "669bd5f36f1af6a1316d345dec2ab09af4d908d0ae87472f2a11e1ec4b4e10d2",
+      "importIri": "https://w3id.org/emmo/1.0.3/disciplines/metrology"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/emmo-repo/EMMO/1.0.3/disciplines/models.ttl",
+      "sha256": "cdb1288e75af33d383017c8dbe594c59d5894d73252d3ae326cb57e91493c913",
+      "importIri": "https://w3id.org/emmo/1.0.3/disciplines/models"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/emmo-repo/EMMO/1.0.3/perspectives/holistic.ttl",
+      "sha256": "7fe47313c13ca49d68a7015b7d13db49eb6ae393bf93a913bf72eef4fe672435",
+      "importIri": "https://w3id.org/emmo/1.0.3/perspectives/holistic"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/emmo-repo/EMMO/1.0.3/perspectives/persistence.ttl",
+      "sha256": "b5ea97c22226bb340a8903a4d6b66d2df8485da5aa7009216a6f03b71bff021e",
+      "importIri": "https://w3id.org/emmo/1.0.3/perspectives/persistence"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/emmo-repo/EMMO/1.0.3/perspectives/semiotics.ttl",
+      "sha256": "93313258730c6f203529638ba5b547eb503a72bbae5811af141fdce198d40865",
+      "importIri": "https://w3id.org/emmo/1.0.3/perspectives/semiotics"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/emmo-repo/EMMO/1.0.3/reference/data.ttl",
+      "sha256": "6e2cc83cd69075e76d97a54d5600c3ad25103ebd9337de2fddce8a1922095476",
+      "importIri": "https://w3id.org/emmo/1.0.3/reference/data"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/emmo-repo/EMMO/1.0.3/reference/persholistic.ttl",
+      "sha256": "1c130ebaf791d765e92df08e5669b61225333218b5236d2a55037b74997bdb08",
+      "importIri": "https://w3id.org/emmo/1.0.3/reference/persholistic"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/emmo-repo/EMMO/1.0.3/reference/workflow.ttl",
+      "sha256": "7e158bd1b5fa6164e969994aaf0296ca9e9a1f495d18585d4d688ba22c6f27d1",
+      "importIri": "https://w3id.org/emmo/1.0.3/reference/workflow"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/emmo-repo/EMMO/1.0.3/reference/symbolic.ttl",
+      "sha256": "032e22b0308debfca23dd2a712e94d9583e48b030ccd69a70953f36c7f0bfa49",
+      "importIri": "https://w3id.org/emmo/1.0.3/reference/symbolic"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/emmo-repo/EMMO/1.0.3/disciplines/materials.ttl",
+      "sha256": "ac8ca61d745ffc2166328c6d49aff4729d8307445e2b041537b248c23040cbd8",
+      "importIri": "https://w3id.org/emmo/1.0.3/disciplines/materials"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/emmo-repo/EMMO/1.0.3/disciplines/units/sidimensionalunits.ttl",
+      "sha256": "0ca065b56e0ecbacac479945741d742ac8f036a2672bb7e85386c4bdc118f961",
+      "importIri": "https://w3id.org/emmo/1.0.3/disciplines/units/sidimensionalunits"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/emmo-repo/EMMO/1.0.3/reference/agency.ttl",
+      "sha256": "590f46b8b9269590326ef9347959f2744f41fdb950d5cb7c987f0ab5e886f668",
+      "importIri": "https://w3id.org/emmo/1.0.3/reference/agency"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/emmo-repo/EMMO/1.0.3/perspectives/reductionistic.ttl",
+      "sha256": "d49fe5fdaac9fa3c678370a4c217ef8f60e0ca9e6404eed0b37374d803ca1d8d",
+      "importIri": "https://w3id.org/emmo/1.0.3/perspectives/reductionistic"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/emmo-repo/EMMO/1.0.3/disciplines/properties.ttl",
+      "sha256": "e8c02893115ef8068499c07c9760be3e858114eead10ee224ea7255e4dd8421e",
+      "importIri": "https://w3id.org/emmo/1.0.3/disciplines/properties"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/emmo-repo/EMMO/1.0.3/perspectives/perspective.ttl",
+      "sha256": "58d66ebd04820722bd553dc3934966140f3e263b65b47719947cfb5c13aa3f13",
+      "importIri": "https://w3id.org/emmo/1.0.3/perspectives/perspective"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/emmo-repo/EMMO/1.0.3/perspectives/contrast.ttl",
+      "sha256": "59b9b2462699ca1c411f992cd69033d28ca215a38aa519fd1f685f9340913c41",
+      "importIri": "https://w3id.org/emmo/1.0.3/perspectives/contrast"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/emmo-repo/EMMO/1.0.3/perspectives/structural.ttl",
+      "sha256": "00e1ac96c4cf1494f64afb7289c4ec9f0c024f5a514c8041cf804d7767ead40e",
+      "importIri": "https://w3id.org/emmo/1.0.3/perspectives/structural"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/emmo-repo/EMMO/1.0.3/reference/physicalistic.ttl",
+      "sha256": "f21d7d382ee6630fb56f4e9f4c80b6d3c5c80d64a165e55f0564c01fefb53fb4",
+      "importIri": "https://w3id.org/emmo/1.0.3/reference/physicalistic"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/emmo-repo/EMMO/1.0.3/foundation/mereocausality.ttl",
+      "sha256": "0491d6c6bf372ed26a3a05fdc447b821d36db4a834feea27489d7fd74abee0d0",
+      "importIri": "https://w3id.org/emmo/1.0.3/foundation/mereocausality"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/emmo-repo/EMMO/1.0.3/reference/standardmodel.ttl",
+      "sha256": "9389cb5abc010004c8c3dda75deae07fe9ed1df65c13d491f831a16b92f89611",
+      "importIri": "https://w3id.org/emmo/1.0.3/reference/standardmodel"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/emmo-repo/EMMO/1.0.3/contributors.ttl",
+      "sha256": "24fba83f75f62a332beeae5f5fbcdfb2bb64c3c04f8abe296d102ca12428d0e8",
+      "importIri": "https://w3id.org/emmo/1.0.3/contributors"
+    }
+  ],
+  "notes": "The full import closure of the 12 EMMO 1.0.3 modules CHAMEO imports, enumerated and verified 2026-08-24 in docs/research/emmo-closure-1.0.3.tsv: 25 modules, 14,800 triples, all warning-free under riot --validate, CC-BY-4.0 throughout. Pinned raw at the 1.0.3 tag; commit b85a0803c47819fc4b53b9c9fd6c61878f714c5b is the immutable form, verified byte-identical. The closure has 12 root modules and no file that imports them all, so the main file is the first row of the tsv by convention and every module is an explicit merge input for reasoning. Each module's owl:versionIRI is the versioned w3id IRI recorded as its importIri; ontology IRIs are version-less. The squashed full-EMMO artifact on GitHub Pages was rejected: 4.2 times this closure, one version IRI for twelve aliases, and a CI-regenerated path that is not a pin. This is a subset of EMMO, not full EMMO: chemistry and units are absent."
+}
