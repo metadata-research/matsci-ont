@@ -3,3 +3,8 @@ tools/
 cache/
 build/
 .env
+
+# Internal docs. The canonical copy is the OneDrive folder
+# Working/Matsci/ont-docs-internal; this path is a mirror of it, synced with
+# matsci-ont-docs-sync. Nothing in it is published with the code.
+docs-internal

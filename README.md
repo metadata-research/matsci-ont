@@ -7,10 +7,10 @@ server. It consumes ontologies that other groups publish. It does not
 author them, and it does not mint identifiers for their entities.
 
 The companion community metadata dictionary is
-[MatSci-SAM](https://github.com/metadata-research/matsci-sam). The plan and
-tracking document for this project is `MATSCI-ONT-PLAN.md` in the MatSci-SAM
-internal documentation tree. Read it before working here. Decisions
-recorded there are closed unless listed as open.
+[MatSci-SAM](https://github.com/metadata-research/matsci-sam). Planning and
+project state are kept in the group's private documentation rather than
+here; `CLAUDE.md` says where to find them and what to read first if you have
+access to that tree.
 
 ## Layout
 
@@ -228,7 +228,7 @@ curl -G http://localhost:3031/matsci-ont/query \
 
 Node and pnpm are pinned in `.nvmrc` and `package.json`, matching the
 MatSci-SAM hosts. The Jena tools and a Java 21 runtime are pinned in
-`pipeline/tools.json` and installed into `tools/` on first use, with the
+`shared/tools.json` and installed into `tools/` on first use, with the
 digest verified before extraction. Jena 6.2.0 requires Java 21. The Jena
 version matches, and the Fuseki tarball digest equals, the reviewed host
 pins in `matsci-ops/deploy/runtime-versions.env`.
