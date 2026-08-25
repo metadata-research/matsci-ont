@@ -195,7 +195,15 @@ async function fetchArtifact(artifact) {
 }
 
 const environment = await jenaEnvironment()
-const entries = (await loadManifest()).filter(
+let manifestEntries
+try {
+  manifestEntries = await loadManifest()
+} catch (error) {
+  console.error(`\nFAIL: ${error.message}`)
+  console.error("the previous store is unchanged")
+  process.exit(1)
+}
+const entries = manifestEntries.filter(
   (entry) => !options.only || options.only.has(entry.key)
 )
 if (entries.length === 0) {
