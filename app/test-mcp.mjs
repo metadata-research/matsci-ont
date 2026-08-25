@@ -1,7 +1,7 @@
 // Exercises the MCP endpoint with the client from the same SDK, which is
 // the only way to know a real client can use it.
 //
-//   node mcp/test-mcp.mjs
+//   node app/test-mcp.mjs
 //
 // Starts the store and the application, so it needs a built store.
 

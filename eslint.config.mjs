@@ -69,9 +69,13 @@ export default defineConfig([
     }
   },
   {
-    // A browser script served to a page, not run by Node.
+    // A browser script served to a page, not run by Node. cytoscape is the
+    // pinned package the page loads from /assets before this one, so it is a
+    // global here rather than an import.
     files: ["app/static/**/*.js"],
-    languageOptions: { globals: { ...globals.browser } }
+    languageOptions: {
+      globals: { ...globals.browser, cytoscape: "readonly" }
+    }
   },
   prettier
 ])

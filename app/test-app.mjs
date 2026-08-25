@@ -2,7 +2,7 @@
 // ancestry chain, and the substitution guards. These decide what a reader
 // is shown, so their behavior is pinned here rather than trusted.
 //
-//   node mcp/test-app.mjs
+//   node app/test-app.mjs
 
 import { verbalize, renderExpression, subgraphOf } from "./lib/axioms.mjs"
 import { buildForest } from "./lib/tree.mjs"
@@ -14,7 +14,7 @@ import {
   regexLiteral,
   safeHref
 } from "./lib/terms.mjs"
-import { allowedSources, maskQuery, withRowLimit, queryForm } from "./data.mjs"
+import { allowedSources } from "./data.mjs"
 import { escape } from "./lib/html.mjs"
 
 const failures = []
@@ -377,41 +377,6 @@ const C = "http://example.org/C"
     "regexLiteral also escapes the quote literal() would",
     regexLiteral('a"b').includes('\\"'),
     regexLiteral('a"b')
-  )
-}
-
-// The masker decides what counts as syntax. A character following a
-// closing quote used to skip every check, so a comment glued to a literal
-// hid its contents from the keyword scan.
-{
-  const masked = maskQuery('SELECT ?s WHERE { ?s ?p "x"#FROM hidden\n }')
-  expect(
-    "a comment straight after a literal is masked",
-    !masked.includes("FROM"),
-    masked
-  )
-  expect(
-    "an IRI straight after a literal is masked",
-    !maskQuery('X "a"<http://x/secret> Z').includes("secret"),
-    maskQuery('X "a"<http://x/secret> Z')
-  )
-  expect(
-    "masking preserves length and line structure",
-    maskQuery('a "b" # c\nd').length === 'a "b" # c\nd'.length &&
-      maskQuery('a "b" # c\nd').includes("\n")
-  )
-  expect(
-    "a variable named from is not a dataset clause",
-    withRowLimit("SELECT ?from WHERE { ?from ?p ?o }", 5) !== null
-  )
-  expect(
-    "a real dataset clause is left alone",
-    withRowLimit("SELECT ?s FROM <http://g> WHERE { ?s ?p ?o }", 5) === null
-  )
-  expect(
-    "an update is refused whatever precedes it",
-    queryForm("# SELECT\nINSERT DATA { }") === "INSERT" &&
-      queryForm('SELECT ?s WHERE { ?s ?p "INSERT DATA" }') === "SELECT"
   )
 }
 

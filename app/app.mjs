@@ -1,20 +1,16 @@
 // The MatSci-ONT application server: browse pages now, the MCP endpoint and
 // grounding route in their phases. Loopback only, read-only, one process.
 //
-//   node mcp/app.mjs            (expects Fuseki per MATSCI_ONT_QUERY_URL)
+//   node app/app.mjs            (expects Fuseki per MATSCI_ONT_QUERY_URL)
 //   pnpm dev                    (starts Fuseki and this together)
 
 import { createServer } from "node:http"
 import { readFile } from "node:fs/promises"
 import { createRequire } from "node:module"
-import {
-  cataloguePage,
-  sourcePage,
-  entityPage,
-  searchPage,
-  graphJson,
-  graphPage
-} from "./pages.mjs"
+import { cataloguePage, sourcePage } from "./pages/catalogue.mjs"
+import { entityPage } from "./pages/entity.mjs"
+import { searchPage } from "./pages/search.mjs"
+import { graphJson, graphPage } from "./pages/graph.mjs"
 import { errorPage } from "./lib/html.mjs"
 import { grounding } from "./data.mjs"
 import { RejectedInput } from "./lib/terms.mjs"
@@ -34,6 +30,10 @@ const ASSETS = {
   "/assets/style.css": [
     new URL("./static/style.css", import.meta.url).pathname,
     "text/css"
+  ],
+  "/assets/graph.js": [
+    new URL("./static/graph.js", import.meta.url).pathname,
+    "text/javascript"
   ],
   "/assets/cytoscape.min.js": [
     require.resolve("cytoscape/dist/cytoscape.min.js"),

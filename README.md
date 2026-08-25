@@ -17,10 +17,15 @@ recorded there are closed unless listed as open.
 | Directory   | Content                                                                     |
 | ----------- | --------------------------------------------------------------------------- |
 | `manifest/` | One JSON file per source, the record the store is built from                |
-| `pipeline/` | Ingestion and check scripts                                                 |
-| `app/`      | The application: browse pages, the MCP endpoint, and their queries          |
+| `pipeline/` | Building the store and checking it: ingestion, reasoning, verification      |
+| `app/`      | Serving the store: browse pages, the grounding route, the MCP endpoint      |
+| `shared/`   | What both layers need: identifiers, paths, external tools, the query loader |
 | `deploy/`   | Drafts of host material, reviewed copies land in the private ops repository |
 | `docs/`     | Project documentation                                                       |
+
+`app/` never imports `pipeline/`, and `shared/` imports neither; ESLint
+enforces both. `docs/architecture.md` explains why and describes how the
+code is arranged.
 
 ## The manifest
 
