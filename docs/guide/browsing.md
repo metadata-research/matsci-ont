@@ -58,6 +58,18 @@ The mappings section lists `skos:exactMatch` and related links to other
 vocabularies, and the referenced-by section lists entities that point at
 this one.
 
+## Mirrored sources
+
+Some sources are mirrors of a dataset published elsewhere rather than
+pinned snapshots. A mirrored source page shows a banner naming the publisher and the date it
+was last projected, and an entity page from that source links to the
+authoritative page for it. A mirror is a copy for reading, and the
+publisher remains the source of record.
+
+A mirror whose licence its publisher has not declared is marked as not
+cleared for public serving. A build destined for a public host leaves it
+out.
+
 ## Search
 
 Search matches whole words in labels and definitions, case-insensitively,

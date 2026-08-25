@@ -2,15 +2,22 @@
 PREFIX dcterms: <http://purl.org/dc/terms/>
 PREFIX void:    <http://rdfs.org/ns/void#>
 PREFIX ont:     <@@ONT@@>
-SELECT ?key ?title ?version ?license ?ontologyIri ?graphIri ?triples ?entries WHERE {
+SELECT ?key ?title ?version ?license ?ontologyIri ?graphIri ?triples ?entries
+       ?republishable ?mirrorOf ?authorityBase ?mirroredFrom WHERE {
   GRAPH <@@CATALOG@@> {
     ?src ont:sourceKey ?key ;
          dcterms:title ?title ;
-         dcterms:hasVersion ?version ;
          dcterms:license ?license ;
-         ont:ontologyIri ?ontologyIri ;
          ont:namedGraph ?graphIri ;
+         ont:republishable ?republishable ;
          void:triples ?triples .
+    # A mirror states none of these: it is not pinned to a version and has
+    # no ontology IRI of its own.
+    OPTIONAL { ?src dcterms:hasVersion ?version }
+    OPTIONAL { ?src ont:ontologyIri ?ontologyIri }
+    OPTIONAL { ?src ont:mirrorOf ?mirrorOf }
+    OPTIONAL { ?src ont:authorityBase ?authorityBase }
+    OPTIONAL { ?src ont:mirroredFrom ?mirroredFrom }
   }
   OPTIONAL {
     SELECT ?key (COUNT(?e) AS ?entries) WHERE {

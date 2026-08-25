@@ -23,12 +23,18 @@ the NIST Materials Data Vocabulary. Every entity keeps the identifier its
 publisher minted, and this service never edits or republishes an ontology
 beyond serving what its publisher released.
 
-Call list_sources first to see which ontologies and versions are loaded.
-An answer drawn from a source must credit that source by name and version.
-list_sources, get_source, get_entity and find_entities return the source,
-its version and its licence with the content. sparql_query does not: a
-query chooses its own columns, so name the graph a result came from if the
-answer needs crediting.
+Call list_sources first to see what is loaded. An answer drawn from a
+source must credit that source by name, and by version where it has one.
+list_sources, get_source, get_entity and find_entities return the source
+and its licence with the content. sparql_query does not: a query chooses
+its own columns, so name the graph a result came from if the answer needs
+crediting.
+
+Some sources are mirrors of a living dataset published elsewhere, marked
+with mirrorOf and the date its publisher last projected it. A mirror is
+not the source of record. One whose clearedForPublication is false holds
+content with no declared licence, so cite where it came from and do not
+present it as free to reuse.
 
 A hierarchy placement marked inferred was derived by an OWL reasoner
 (HermiT) at build time and is not asserted by the source. Say so when
@@ -57,12 +63,17 @@ async function answering(work) {
 const sourceShape = {
   key: z.string(),
   title: z.string(),
-  version: z.string(),
   license: z.string(),
-  ontologyIri: z.string(),
   graphIri: z.string(),
   triples: z.number(),
   entries: z.number(),
+  clearedForPublication: z.boolean(),
+  // A mirror has neither, and states what it mirrors instead.
+  version: z.string().optional(),
+  ontologyIri: z.string().optional(),
+  mirrorOf: z.string().optional(),
+  mirroredFrom: z.string().optional(),
+  authorityBase: z.string().optional(),
 };
 
 // Declared on every tool that can cut its answer, so a client reads the
@@ -74,8 +85,11 @@ const findShape = {
       label: z.string(),
       definition: z.string().optional(),
       source: z.string(),
-      version: z.string(),
+      version: z.string().optional(),
       license: z.string(),
+      clearedForPublication: z.boolean().optional(),
+      mirrorOf: z.string().optional(),
+      mirroredFrom: z.string().optional(),
     }),
   ),
   truncated: z.boolean(),
@@ -89,7 +103,14 @@ const entityShape = {
   definitionProperty: z.string().optional(),
   note: z.string().optional(),
   source: z
-    .object({ key: z.string(), version: z.string(), license: z.string() })
+    .object({
+      key: z.string(),
+      version: z.string().optional(),
+      license: z.string(),
+      clearedForPublication: z.boolean().optional(),
+      mirrorOf: z.string().optional(),
+      mirroredFrom: z.string().optional(),
+    })
     .optional(),
   triples: z
     .array(

@@ -133,6 +133,75 @@ export async function readEntities(environment, location, queryPath) {
   return byGraph;
 }
 
+// A MatSci-SAM term does not carry its definition as a literal. It points
+// at one revision per competing definition, and the text is the rdf:value
+// of that revision. The vocabulary is built on rival definitions, so there
+// is no single answer in the graph: the index takes the most settled status
+// and, among equals, the lowest definition number, and records how many
+// rivals there were so the choice is visible rather than implied.
+const STATUS_RANK = { stable: 0, "community-reviewed": 1, proposed: 2 };
+const MATSCI = "metadata#";
+
+export function mirrorDefinitionQuery(graphIri) {
+  return `PREFIX skos: <${SKOS}>
+PREFIX rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+SELECT ?term ?text ?status ?revision WHERE {
+  GRAPH <${graphIri}> {
+    ?term skos:definition ?revision .
+    ?revision rdf:value ?text .
+    OPTIONAL { ?revision ?statusProperty ?status
+               FILTER(STRENDS(STR(?statusProperty), "${MATSCI}status")) }
+  }
+}
+ORDER BY ?term ?revision`;
+}
+
+export async function readMirrorDefinitions(environment, location, graphIri, queryPath) {
+  await writeFile(queryPath, `${mirrorDefinitionQuery(graphIri)}\n`);
+  const result = runJena(environment, "tdb2.tdbquery", [
+    `--loc=${location}`,
+    "--results=JSON",
+    `--query=${queryPath}`,
+  ]);
+  if (result.status !== 0) throw new Error(`mirror definition query failed\n${result.stderr}`);
+
+  const byTerm = new Map();
+  for (const binding of JSON.parse(result.stdout).results.bindings) {
+    const term = binding.term.value;
+    if (!byTerm.has(term)) byTerm.set(term, []);
+    byTerm.get(term).push({
+      text: binding.text,
+      status: binding.status?.value ?? "proposed",
+      revision: binding.revision.value,
+    });
+  }
+  return byTerm;
+}
+
+// Numbers in an IRI compare as numbers. Comparing the IRIs as text would
+// place definition 10 before definition 2, which is not the documented rule
+// and would change which definition a reader is shown once a term reaches
+// ten rivals.
+function numbersIn(iri) {
+  return (iri.match(/\d+/g) ?? []).map(Number);
+}
+
+export function chooseMirrorDefinition(candidates) {
+  if (!candidates || candidates.length === 0) return null;
+  const ordered = [...candidates].sort((a, b) => {
+    const rank = (STATUS_RANK[a.status] ?? 9) - (STATUS_RANK[b.status] ?? 9);
+    if (rank !== 0) return rank;
+    const left = numbersIn(a.revision);
+    const right = numbersIn(b.revision);
+    for (let i = 0; i < Math.max(left.length, right.length); i += 1) {
+      const difference = (left[i] ?? -1) - (right[i] ?? -1);
+      if (difference !== 0) return difference;
+    }
+    return a.revision < b.revision ? -1 : a.revision > b.revision ? 1 : 0;
+  });
+  return { ...ordered[0], rivals: candidates.length };
+}
+
 function choose(properties, ordered) {
   for (const property of ordered) {
     const chosen = preferred(properties.get(property) ?? []);
@@ -146,23 +215,38 @@ const PREFIXES = `@prefix dcterms: <http://purl.org/dc/terms/> .
 @prefix xsd:     <http://www.w3.org/2001/XMLSchema#> .
 `;
 
-export function catalogTurtle(manifest, counts, reasoning = []) {
+export function catalogTurtle(manifest, counts, reasoning = [], mirrorModified) {
   const base = baseUrl();
   const byKey = new Map(reasoning.map((record) => [record.key, record]));
   const lines = [PREFIXES, `@prefix ont: <${base}vocab#> .`, ""];
   for (const entry of manifest) {
     const subject = `<${base}sources/${entry.key}>`;
     const record = byKey.get(entry.key);
+    const mirror = entry.kind === "matsci-sam-mirror";
     lines.push(`${subject} a ont:Source, void:Dataset ;`);
     lines.push(`    ont:sourceKey "${escapeLiteral(entry.key)}" ;`);
     lines.push(`    dcterms:title "${escapeLiteral(entry.title)}" ;`);
-    lines.push(`    ont:ontologyIri <${entry.ontologyIri}> ;`);
     lines.push(`    ont:namedGraph <${entry.graphIri}> ;`);
-    lines.push(`    dcterms:hasVersion "${escapeLiteral(entry.version)}" ;`);
     lines.push(`    dcterms:license "${escapeLiteral(entry.license)}" ;`);
     lines.push(`    ont:republishable ${entry.republishable ? "true" : "false"} ;`);
-    lines.push(`    dcterms:source <${entry.downloadUrl}> ;`);
-    lines.push(`    ont:sha256 "${entry.sha256}" ;`);
+    if (mirror) {
+      // A mirror states where it came from and when the publisher last
+      // projected it, which is the date a reader needs to judge it. It
+      // states no version or digest, because it is not pinned.
+      lines.push(`    ont:mirrorOf <${entry.sourceDataset}> ;`);
+      lines.push(`    ont:authorityBase <${entry.authorityBase}> ;`);
+      lines.push(`    dcterms:source <${entry.fetchUrl}> ;`);
+      if (mirrorModified) {
+        lines.push(
+          `    ont:mirroredFrom "${escapeLiteral(mirrorModified)}"^^<http://www.w3.org/2001/XMLSchema#dateTime> ;`,
+        );
+      }
+    } else {
+      lines.push(`    ont:ontologyIri <${entry.ontologyIri}> ;`);
+      lines.push(`    dcterms:hasVersion "${escapeLiteral(entry.version)}" ;`);
+      lines.push(`    dcterms:source <${entry.downloadUrl}> ;`);
+      lines.push(`    ont:sha256 "${entry.sha256}" ;`);
+    }
     for (const module of entry.modules ?? []) {
       lines.push(`    ont:module <${module.url}> ;`);
     }
@@ -182,7 +266,7 @@ export function catalogTurtle(manifest, counts, reasoning = []) {
   return lines.join("\n");
 }
 
-export function definitionsTurtle(manifest, byGraph) {
+export function definitionsTurtle(manifest, byGraph, mirrorDefinitions = new Map()) {
   const base = baseUrl();
   const lines = [PREFIXES, `@prefix ont: <${base}vocab#> .`, ""];
   let entries = 0;
@@ -191,6 +275,7 @@ export function definitionsTurtle(manifest, byGraph) {
     const entities = byGraph.get(entry.graphIri);
     if (!entities) continue;
     const source = `<${base}sources/${entry.key}>`;
+    const revisions = mirrorDefinitions.get(entry.key);
 
     for (const [subject, properties] of [...entities.entries()].sort()) {
       const label = choose(properties, LABEL_PROPERTIES);
@@ -198,6 +283,7 @@ export function definitionsTurtle(manifest, byGraph) {
       // reader, so the index skips it.
       if (!label) continue;
       const definition = choose(properties, DEFINITION_PROPERTIES);
+      const mirrored = revisions ? chooseMirrorDefinition(revisions.get(subject)) : null;
 
       lines.push(`<${subject}>`);
       lines.push(`    ont:fromSource ${source} ;`);
@@ -206,11 +292,20 @@ export function definitionsTurtle(manifest, byGraph) {
       // pattern answers the grounding contract of Phase 5. They are stated
       // with properties of this index: a dcterms:license here would be a
       // claim about somebody else's entity rather than about the text this
-      // index serves.
-      lines.push(`    ont:sourceVersion "${escapeLiteral(entry.version)}" ;`);
+      // index serves. A mirror has no version, so it states the kind of
+      // source it is instead.
+      lines.push(
+        `    ont:sourceVersion "${escapeLiteral(entry.version ?? "mirror")}" ;`,
+      );
       lines.push(`    ont:license "${escapeLiteral(entry.license)}" ;`);
       lines.push(`    ont:labelProperty <${label.property}> ;`);
-      if (definition) {
+      if (mirrored) {
+        lines.push(`    ont:definitionProperty <${SKOS}definition> ;`);
+        lines.push(`    ont:definitionRevision <${mirrored.revision}> ;`);
+        lines.push(`    ont:definitionStatus "${escapeLiteral(mirrored.status)}" ;`);
+        if (mirrored.rivals > 1) lines.push(`    ont:rivalDefinitions ${mirrored.rivals} ;`);
+        lines.push(`    ont:definition ${literal(mirrored.text)} ;`);
+      } else if (definition) {
         lines.push(`    ont:definitionProperty <${definition.property}> ;`);
         lines.push(`    ont:definition ${literal(definition.binding)} ;`);
       }

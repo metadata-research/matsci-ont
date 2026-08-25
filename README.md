@@ -31,7 +31,7 @@ is one JSON file in `manifest/` with these fields:
 | Field | Meaning |
 | --- | --- |
 | `key` | Short stable identifier, matches the file name |
-| `kind` | `external-snapshot` or `matsci-sam-mirror` |
+| `kind` | `external-snapshot` for a pinned ontology, `matsci-sam-mirror` for a mirrored dataset |
 | `title` | Human-readable source name |
 | `ontologyIri` | Canonical ontology IRI minted by the publisher |
 | `graphIri` | Named graph the source loads into, normally the ontology IRI |
@@ -47,8 +47,19 @@ is one JSON file in `manifest/` with these fields:
 | `notes` | Optional free text |
 
 Two rules are enforced, and the check script refuses an entry that breaks
-either: every entry names a license and a hash, and content whose license
-forbids republication never enters the public store.
+either: every entry names a license, and a pinned source names a digest.
+
+A **mirror** is the one kind of source declared to be moving. It carries a
+`fetchUrl`, a `sourceDataset`, and an `authorityBase` instead of a version
+and a digest, and it is fetched fresh on each build. A failed fetch keeps
+the previous copy and the build continues.
+
+`republishable` records whether a source is cleared for public serving, and
+the check script refuses to set it while the licence is `UNDECLARED`. A
+source that is not cleared still loads on a workstation, where the operator
+is the only reader. `pnpm ingest --publication` leaves it out and builds
+the rest, which is the store a host receives. `build/ingest-report.json`
+records which kind of store was built.
 
 ## Building the store
 
@@ -131,6 +142,30 @@ proxy settings pointing at a closed port, so an attempt to resolve anything
 else fails at once rather than becoming a dependency nobody recorded. An
 inconsistent ontology fails the build.
 
+## The MatSci-SAM mirror
+
+The hub mirrors the five graph documents [MatSci-SAM](https://ego.cci.drexel.edu)
+publishes, so one query reaches a community vocabulary term and a formal
+ontology class together. Its terms reach classes in PMDco, MDO and the
+NIST vocabulary by matching labels, which `pnpm verify` counts.
+
+MatSci-SAM is the source of record. A source page, an entity page and a
+graph view of mirrored content carry a banner saying so with the date its
+publisher last projected the dataset, an entity page links to the
+authoritative page, and search results name the mirrored source and its
+licence.
+
+MatSci-SAM has not selected a licence for its content, which it records as
+an open decision until public launch. The mirror therefore states its
+licence as `UNDECLARED` and is not cleared for public serving: it loads on
+a workstation and a publication build refuses it. When MatSci-SAM publishes
+a licence, that becomes a one-line change here.
+
+A mirrored term keeps its definition behind a revision node, and MatSci-SAM
+is built on rival definitions, so there is no single answer in the graph.
+The index takes the most settled status and, among equals, the lowest
+revision, and records how many rivals there were so the choice is visible.
+
 ## Comparing two builds
 
 `pnpm verify:full` builds the store a second time and compares the two in
@@ -142,6 +177,10 @@ labels are minted per parser run:
 | 1 | per-graph quad counts | a graph that gained or lost content |
 | 2 | blank-node-blinded sorted hash | a changed value anywhere, including inside a blank node |
 | 3 | per-graph `rdfcompare` isomorphism | everything above, plus blank node topology |
+
+A comparison run reuses the mirrored documents the first build fetched. If
+the store predates the documents now in the cache, the check reports the
+store as stale rather than as non-deterministic.
 
 Tier 3 is the gate. The weaker tiers are kept because they localize a
 failure cheaply, not because they are sufficient: in these ontologies the

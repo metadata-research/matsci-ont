@@ -28,9 +28,12 @@ export async function loadManifest() {
   return entries;
 }
 
+export const isMirror = (entry) => entry.kind === "matsci-sam-mirror";
+
 // Every artifact an entry loads: the main file first, then its pinned
 // modules. All of them land in the one named graph of the entry.
 export function artifactsOf(entry) {
+  if (isMirror(entry)) return [{ url: entry.fetchUrl, format: entry.format, mirror: true }];
   const artifacts = [
     { url: entry.downloadUrl, sha256: entry.sha256, format: entry.format },
   ];

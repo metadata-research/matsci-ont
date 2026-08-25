@@ -37,6 +37,22 @@ async function hasInferred(key) {
   return select("inferred-present", { ...common, INFGRAPH: checkIri(inferredGraphFor(key)) });
 }
 
+// A mirror is a copy of a living dataset published elsewhere. A page that
+// shows one names the publisher, gives the date it was last projected, and
+// links to the authoritative copy, so a reader can tell which service is
+// the source of record.
+function mirrorBanner(source) {
+  if (!source?.mirrorOf) return "";
+  const when = source.mirroredFrom?.value;
+  const cleared = source.republishable?.value === "true";
+  return `<p class="banner">Mirror of
+<a href="${attr(source.mirrorOf.value)}" rel="noopener">MatSci-SAM</a>${
+    when ? `, as its publisher projected it on ${escape(when.slice(0, 10))}` : ""
+  }. MatSci-SAM is the source of record.${
+    cleared ? "" : " The licence is undeclared, so this copy is not cleared for public serving."
+  }</p>`;
+}
+
 function hierarchySubstitutions(source, inferred) {
   const graph = checkIri(source.graphIri.value);
   const inferredGraph = inferred ? checkIri(inferredGraphFor(source.key.value)) : graph;
@@ -50,9 +66,15 @@ export async function cataloguePage() {
       (row) => `<section class="card">
 <h2><a href="/source/${attr(row.key.value)}">${escape(row.title.value)}</a></h2>
 <table>
-<tr><th>Version</th><td>${escape(row.version.value)}</td></tr>
-<tr><th>License</th><td>${escape(row.license.value)}</td></tr>
-<tr><th>Ontology IRI</th><td><code>${escape(row.ontologyIri.value)}</code></td></tr>
+<tr><th>${row.mirrorOf ? "Kind" : "Version"}</th><td>${
+        row.mirrorOf ? "Mirror of a published dataset" : escape(row.version?.value ?? "")
+      }</td></tr>
+<tr><th>License</th><td>${escape(row.license.value)}${
+        row.republishable?.value === "false"
+          ? ' <span class="mark">not cleared for public serving</span>'
+          : ""
+      }</td></tr>
+${row.ontologyIri ? `<tr><th>Ontology IRI</th><td><code>${escape(row.ontologyIri.value)}</code></td></tr>` : ""}
 <tr><th>Triples</th><td>${escape(Number(row.triples.value).toLocaleString("en-US"))}</td></tr>
 <tr><th>Indexed entries</th><td>${escape(Number(row.entries?.value ?? 0).toLocaleString("en-US"))}</td></tr>
 </table>
@@ -111,10 +133,11 @@ export async function sourcePage(key, inferred) {
     html: layout(
       source.title.value,
       `<h1>${escape(source.title.value)}</h1>
+${mirrorBanner(source)}
 <table>
-<tr><th>Version</th><td>${escape(source.version.value)}</td></tr>
+${source.version ? `<tr><th>Version</th><td>${escape(source.version.value)}</td></tr>` : ""}
 <tr><th>License</th><td>${escape(source.license.value)}</td></tr>
-<tr><th>Ontology IRI</th><td><code>${escape(source.ontologyIri.value)}</code></td></tr>
+${source.ontologyIri ? `<tr><th>Ontology IRI</th><td><code>${escape(source.ontologyIri.value)}</code></td></tr>` : ""}
 <tr><th>Named graph</th><td><code>${escape(source.graphIri.value)}</code></td></tr>
 <tr><th>Triples</th><td>${escape(Number(source.triples.value).toLocaleString("en-US"))}</td></tr>
 <tr><th>Indexed entries</th><td>${escape(Number(source.entries?.value ?? 0).toLocaleString("en-US"))}</td></tr>
@@ -292,9 +315,17 @@ export async function entityPage(iri, inferred) {
     html: layout(
       label,
       `<h1>${escape(label)}</h1>
+${mirrorBanner(source)}
+${
+        source?.mirrorOf && safeHref(iri) && field("label")
+          ? `<p><a href="${attr(safeHref(iri))}" rel="noopener">Open this on MatSci-SAM</a></p>`
+          : ""
+      }
 <p class="attribution">${
         source
-          ? `From <a href="/source/${attr(source.key.value)}">${escape(source.title.value)}</a>, version ${escape(source.version.value)}, license ${escape(source.license.value)}.`
+          ? `From <a href="/source/${attr(source.key.value)}">${escape(source.title.value)}</a>${
+              source.version ? `, version ${escape(source.version.value)}` : ""
+            }, license ${escape(source.license.value)}.`
           : "Not indexed from a catalogued source."
       }</p>
 <p><code>${escape(iri)}</code></p>
@@ -334,9 +365,17 @@ export async function searchPage(q) {
     if (!byKey.has(row.key.value)) byKey.set(row.key.value, []);
     byKey.get(row.key.value).push(row);
   }
+  const catalogue = new Map((await catalogueRows()).map((row) => [row.key.value, row]));
   const sections = [...byKey.entries()]
     .map(
-      ([key, hits]) => `<h2>${escape(key)}</h2>
+      ([key, hits]) => `<h2>${escape(catalogue.get(key)?.title.value ?? key)}</h2>
+${
+        catalogue.get(key)?.mirrorOf
+          ? `<p class="mark">Mirrored from MatSci-SAM, licence ${escape(
+              catalogue.get(key)?.license.value ?? "",
+            )}.</p>`
+          : `<p class="mark">${escape(catalogue.get(key)?.license.value ?? "")}</p>`
+      }
 <ul>${hits
         .map(
           (row) =>
@@ -430,6 +469,7 @@ export async function graphPage(key) {
     html: layout(
       `Graph: ${source.title.value}`,
       `<h1>${escape(source.title.value)}</h1>
+${mirrorBanner(source)}
 <p><a href="/source/${attr(key)}">Back to the source page</a></p>
 <p><input id="filter" type="search" placeholder="Filter nodes by label"> <span id="note" class="mark"></span></p>
 <div id="cy"></div>

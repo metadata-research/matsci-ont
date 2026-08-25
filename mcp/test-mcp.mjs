@@ -60,8 +60,39 @@ try {
   const sources = payload(await client.callTool({ name: "list_sources", arguments: {} }));
   expect(
     "list_sources returns every source with its licence",
-    sources.sources.length === 4 && sources.sources.every((source) => source.license),
+    sources.sources.length === 9 && sources.sources.every((source) => source.license),
     sources.sources.map((source) => `${source.key} ${source.license}`).join(", "),
+  );
+
+  // A mirror says whose it is and whether it may be served publicly, so a
+  // client passing its content on can say the same.
+  const mirrors = sources.sources.filter((source) => source.mirrorOf);
+  expect(
+    "a mirrored source names what it mirrors and is marked uncleared",
+    mirrors.length === 5 &&
+      mirrors.every(
+        (source) =>
+          source.mirrorOf.includes("ego.cci.drexel.edu") &&
+          source.clearedForPublication === false &&
+          source.version === undefined,
+      ),
+    mirrors.map((source) => `${source.key} cleared=${source.clearedForPublication}`).join(", "),
+  );
+
+  // A mirrored vocabulary term has the definition its publisher states,
+  // which is behind a revision node rather than on the term.
+  const samTerm = payload(
+    await client.callTool({
+      name: "get_entity",
+      arguments: { iri: "https://ego.cci.drexel.edu/vocabulary/sintering" },
+    }),
+  );
+  expect(
+    "a mirrored term has its definition and its undeclared licence",
+    samTerm.label === "sintering" &&
+      /powder/.test(samTerm.definition ?? "") &&
+      samTerm.source?.license === "UNDECLARED",
+    `${samTerm.label} / ${samTerm.source?.license}`,
   );
 
   // The cross-source lookup this hub exists to answer.
@@ -71,8 +102,20 @@ try {
   const bySource = new Set(found.results.map((row) => row.source));
   expect(
     "find_entities answers one term from more than one source",
-    bySource.size > 1 && found.results.every((row) => row.license && row.version),
+    bySource.size > 1 &&
+      // Every hit names its licence. A version is named where the source
+      // has one, and a mirror does not.
+      found.results.every((row) => row.license) &&
+      found.results.every((row) => (row.mirrorOf ? !row.version : Boolean(row.version))),
     [...bySource].join(", "),
+  );
+  expect(
+    "a mirrored hit is marked as one rather than given a pseudo-version",
+    found.results.some((row) => row.mirrorOf && row.clearedForPublication === false),
+    found.results
+      .filter((row) => row.source.startsWith("sam-"))
+      .map((row) => `${row.source} version=${row.version} mirrorOf=${Boolean(row.mirrorOf)}`)
+      .join(", "),
   );
   expect(
     "a source filter narrows the search",

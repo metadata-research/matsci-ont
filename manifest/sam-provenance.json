@@ -1,0 +1,14 @@
+{
+  "key": "sam-provenance",
+  "kind": "matsci-sam-mirror",
+  "title": "MatSci-SAM provenance (mirror)",
+  "graphIri": "https://ego.cci.drexel.edu/graphs/provenance",
+  "fetchUrl": "https://ego.cci.drexel.edu/graphs/provenance",
+  "sourceDataset": "https://ego.cci.drexel.edu/dataset",
+  "authorityBase": "https://ego.cci.drexel.edu/",
+  "format": "ttl",
+  "license": "UNDECLARED",
+  "republishable": false,
+  "reason": false,
+  "notes": "Who contributed what, and when. Names 27 people and records their comments and votes, which MatSci-SAM publishes by design. Not cleared for public serving. A mirror of a published MatSci-SAM graph, fetched fresh rather than pinned, because the dataset is a living record. MatSci-SAM declares no licence for its content (a decision it records as open until public launch), so the licence here is UNDECLARED and the entry is not cleared for public serving. The day MatSci-SAM publishes a licence in its meta graph, this becomes a one-line change. The graph IRI is the document URL, which is what MatSci-SAM publishes as the named graph; it changes when MatSci-SAM flips its identifier base to w3id.org."
+}

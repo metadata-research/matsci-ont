@@ -36,17 +36,28 @@ export function checkLimit(value, fallback, cap) {
   return value;
 }
 
+// A mirror has no version and no ontology IRI of its own, so those are
+// absent rather than empty, and it says instead what it mirrors and when
+// its publisher last projected it.
 export async function listSources() {
   const rows = await select("catalogue", common);
   return rows.map((row) => ({
     key: row.key.value,
     title: row.title.value,
-    version: row.version.value,
     license: row.license.value,
-    ontologyIri: row.ontologyIri.value,
     graphIri: row.graphIri.value,
     triples: Number(row.triples.value),
     entries: Number(row.entries?.value ?? 0),
+    clearedForPublication: row.republishable?.value === "true",
+    ...(row.version ? { version: row.version.value } : {}),
+    ...(row.ontologyIri ? { ontologyIri: row.ontologyIri.value } : {}),
+    ...(row.mirrorOf
+      ? {
+          mirrorOf: row.mirrorOf.value,
+          mirroredFrom: row.mirroredFrom?.value,
+          authorityBase: row.authorityBase?.value,
+        }
+      : {}),
   }));
 }
 
@@ -130,12 +141,13 @@ export async function getEntity(iri) {
       })
     : [];
 
-  // An entity the definitions index skipped, because it carries no label,
+  // An entity the definitions index skipped, because it has no label,
   // still comes from a source: the graph its triples are in names it.
+  const catalogue = await listSources();
   const graphKeys = new Set(triples.map((triple) => triple.graph));
   const fromGraph = entry.sourceKey
     ? undefined
-    : (await listSources()).find((source) => graphKeys.has(source.graphIri));
+    : catalogue.find((source) => graphKeys.has(source.graphIri));
 
   return {
     iri,
@@ -144,13 +156,38 @@ export async function getEntity(iri) {
     definition: entry.definition,
     definitionProperty: entry.definitionProperty,
     source: entry.sourceKey
-      ? { key: entry.sourceKey, version: entry.sourceVersion, license: entry.license }
+      ? {
+          key: entry.sourceKey,
+          ...(entry.sourceVersion && entry.sourceVersion !== "mirror"
+            ? { version: entry.sourceVersion }
+            : {}),
+          license: entry.license,
+          // A client is told to act on these, so every payload naming a
+          // source carries them, not only the catalogue listing.
+          ...mirrorFacts(catalogue, entry.sourceKey),
+        }
       : fromGraph
-        ? { key: fromGraph.key, version: fromGraph.version, license: fromGraph.license }
+        ? {
+            key: fromGraph.key,
+            ...(fromGraph.version ? { version: fromGraph.version } : {}),
+            license: fromGraph.license,
+            ...mirrorFacts(catalogue, fromGraph.key),
+          }
         : undefined,
     triples: triples.slice(0, ROW_CAP),
     truncated: triples.length > ROW_CAP,
     inferredParents: inferred.map((row) => row.parent.value),
+  };
+}
+
+// What a client needs in order to say where something came from and
+// whether it may be passed on.
+function mirrorFacts(catalogue, key) {
+  const source = catalogue.find((row) => row.key === key);
+  if (!source) return {};
+  return {
+    clearedForPublication: source.clearedForPublication,
+    ...(source.mirrorOf ? { mirrorOf: source.mirrorOf, mirroredFrom: source.mirroredFrom } : {}),
   };
 }
 
@@ -173,14 +210,18 @@ export async function findEntities(q, { sources, limit } = {}) {
     LIMIT: String(cap + 1),
   });
 
+  const catalogue = await listSources();
   return {
     results: rows.slice(0, cap).map((row) => ({
       iri: row.s.value,
       label: row.label.value,
       definition: row.definition?.value,
       source: row.key.value,
-      version: row.version.value,
+      // "mirror" is a placeholder the index writes where a version would
+      // be, not a version. A client is not given it as one.
+      ...(row.version.value === "mirror" ? {} : { version: row.version.value }),
       license: row.license.value,
+      ...mirrorFacts(catalogue, row.key.value),
     })),
     truncated: rows.length > cap,
   };

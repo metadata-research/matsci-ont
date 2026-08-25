@@ -8,8 +8,8 @@
 import { spawnSync } from "node:child_process";
 import { readFile, rm, writeFile, mkdir } from "node:fs/promises";
 import { join } from "node:path";
-import { ROOT, jenaEnvironment } from "./lib/tools.mjs";
-import { loadManifest } from "./lib/manifest.mjs";
+import { ROOT, jenaEnvironment, hashFile } from "./lib/tools.mjs";
+import { loadManifest, extensionFor } from "./lib/manifest.mjs";
 import { startFuseki, stopFuseki, query } from "./lib/fuseki.mjs";
 import { graphCounts, dumpBlinded, graphsIsomorphic } from "./lib/compare.mjs";
 import { graphIris, baseUrl, inferredGraphFor } from "./lib/derive.mjs";
@@ -149,14 +149,43 @@ try {
   const unlicensedCount = unlicensed.ok
     ? Number(JSON.parse(unlicensed.text).results.bindings[0].n.value)
     : -1;
-  const forbidden = manifest.filter((entry) => !entry.republishable).map((entry) => entry.key);
+  // Naming a licence includes naming it as undeclared. What must never
+  // happen is an entry that says nothing at all, which would be passed on
+  // as though it were free to reuse. A source not cleared for publication
+  // may sit in a workstation store; the check that it cannot reach a
+  // public one is the publication build below.
   record(
     "every definitions entry names a licence",
-    unlicensedCount === 0 && forbidden.length === 0,
-    forbidden.length > 0
-      ? `non-republishable sources in the manifest: ${forbidden.join(", ")}`
-      : `${unlicensedCount} entries without a licence`,
+    unlicensedCount === 0,
+    `${unlicensedCount} entries without a licence`,
   );
+
+  const notCleared = manifest.filter((entry) => !entry.republishable);
+  if (notCleared.length > 0) {
+    const attempt = spawnSync(
+      process.execPath,
+      [
+        join(ROOT, "pipeline/ingest.mjs"),
+        "--publication",
+        "--no-swap",
+        "--reuse-mirror",
+        `--only=${notCleared.map((entry) => entry.key).join(",")}`,
+      ],
+      { cwd: ROOT, encoding: "utf8", maxBuffer: 1024 * 1024 * 16 },
+    );
+    const excludedAll = notCleared.every((entry) =>
+      new RegExp(`${entry.key}[\\s\\S]{0,120}excluded from a publication build`).test(
+        attempt.stderr,
+      ),
+    );
+    record(
+      "a publication build leaves out every source that is not cleared",
+      excludedAll,
+      excludedAll
+        ? `${notCleared.length} excluded`
+        : `not all of ${notCleared.map((e) => e.key).join(", ")} were excluded`,
+    );
+  }
 
   // The point of holding several sources at once: one term, several
   // independent vocabularies, in one answer.
@@ -187,6 +216,81 @@ try {
     !service.ok,
     service.ok ? "the query was accepted" : `refused with HTTP ${service.status}`,
   );
+
+  // The mirror: what it holds, that it says whose it is, and that nothing
+  // in it is cleared for a public endpoint while its licence is undeclared.
+  {
+    const ont = `${baseUrl()}vocab#`;
+    const mirrors = manifest.filter((entry) => entry.kind === "matsci-sam-mirror");
+    if (mirrors.length > 0) {
+      const short = mirrors.filter((entry) => !(counts.get(entry.graphIri) > 0));
+      record(
+        "every mirrored graph loaded",
+        short.length === 0,
+        short.length > 0
+          ? `empty: ${short.map((e) => e.key).join(", ")}`
+          : mirrors.map((e) => `${e.key} ${counts.get(e.graphIri).toLocaleString()}`).join(", "),
+      );
+
+      // The counts must match the documents the publisher serves, so a
+      // mirror that quietly lost content is caught rather than served.
+      const stated = await query(
+        server.base,
+        `SELECT ?graph ?n WHERE { GRAPH ?g { ?graph <http://rdfs.org/ns/void#triples> ?n }
+           FILTER(STRSTARTS(STR(?g), "https://ego.cci.drexel.edu/graphs/")) }`,
+      );
+      const drift = [];
+      if (stated.ok) {
+        for (const binding of JSON.parse(stated.text).results.bindings) {
+          const graph = binding.graph.value;
+          const entry = mirrors.find((e) => e.graphIri === graph);
+          if (!entry) continue;
+          const loaded = counts.get(graph) ?? 0;
+          if (loaded !== Number(binding.n.value)) {
+            drift.push(`${entry.key}: loaded ${loaded}, publisher states ${binding.n.value}`);
+          }
+        }
+      }
+      record(
+        "a mirrored graph holds what its publisher says it holds",
+        drift.length === 0,
+        drift.join("\n") || "counts agree with the published description",
+      );
+
+      const undeclared = await query(
+        server.base,
+        `SELECT (COUNT(*) AS ?n) WHERE { GRAPH <${graphs.catalog}> {
+           ?s <${ont}republishable> false ; <${ont}mirrorOf> ?dataset } }`,
+      );
+      record(
+        "no mirror is cleared for public serving while its licence is undeclared",
+        undeclared.ok &&
+          Number(JSON.parse(undeclared.text).results.bindings[0].n.value) === mirrors.length,
+        `${mirrors.length} mirrors, all marked not republishable`,
+      );
+
+      // The reason the mirror exists: one query reaching a term and an
+      // ontology class together.
+      const joined = await query(
+        server.base,
+        `SELECT (COUNT(DISTINCT ?term) AS ?terms) (COUNT(*) AS ?pairs) WHERE {
+           GRAPH <${graphs.definitions}> {
+             ?term <${ont}sourceKey> "sam-vocabulary" ; <${ont}label> ?label .
+             ?class <${ont}label> ?classLabel ; <${ont}sourceKey> ?other .
+             FILTER(?other != "sam-vocabulary")
+             FILTER(LCASE(STR(?label)) = LCASE(STR(?classLabel)))
+           } }`,
+      );
+      const terms = joined.ok
+        ? Number(JSON.parse(joined.text).results.bindings[0].terms.value)
+        : 0;
+      record(
+        "one query joins a vocabulary term to an ontology class",
+        terms > 0,
+        `${terms} vocabulary term(s) reach a class in another source`,
+      );
+    }
+  }
 
   // Reasoning: the recorded counts, and the record the catalogue publishes.
   {
@@ -371,11 +475,17 @@ try {
       );
 
       const searchText = (await page("/search?q=sinter")).text;
+      // Grouped under the source title, each group naming its licence, and
+      // never matching a word that merely contains the letters.
+      const groups = (searchText.match(/<h2>/g) ?? []).length;
       record(
-        "search groups sources and honors word boundaries",
-        searchText.includes("nist-imrr") &&
-          searchText.includes("pmdco") &&
+        "search groups sources, names their licences, and honors word boundaries",
+        groups > 1 &&
+          /PMD Core Ontology/.test(searchText) &&
+          /Materials Data Vocabulary/.test(searchText) &&
+          /CC-BY-4.0/.test(searchText) &&
           !searchText.includes("hasInteractionVolume"),
+        `${groups} source group(s)`,
       );
 
       // The inferred toggle shows a placement the asserted view does not.
@@ -495,10 +605,34 @@ try {
 }
 
 if (withDeterminism) {
+  // A store built before the mirrored documents were last fetched would
+  // differ from a rebuild for a reason that has nothing to do with this
+  // pipeline. Saying so is more use than reporting it as non-determinism.
+  const report = JSON.parse(
+    await readFile(join(ROOT, "build/ingest-report.json"), "utf8").catch(() => "{}"),
+  );
+  const stale = [];
+  for (const [key, digest] of Object.entries(report.mirrorDigests ?? {})) {
+    const entry = manifest.find((e) => e.key === key);
+    const path = join(ROOT, "cache/mirror", `${key}.${extensionFor(entry?.format ?? "ttl")}`);
+    const current = await hashFile(path, "sha256").catch(() => undefined);
+    if (current !== digest) stale.push(key);
+  }
+  if (stale.length > 0) {
+    record(
+      "the store was built from the mirrored documents now in the cache",
+      false,
+      `${stale.join(", ")} changed since this store was built. Run pnpm ingest, then compare.`,
+    );
+  }
+
   await rm(STAGING, { recursive: true, force: true });
   const rebuild = spawnSync(
     process.execPath,
-    [join(ROOT, "pipeline/ingest.mjs"), "--no-swap"],
+    // Reuses the mirrored documents the first build fetched: the point of
+    // this comparison is whether the pipeline is deterministic, not
+    // whether a publisher re-projected its dataset in between.
+    [join(ROOT, "pipeline/ingest.mjs"), "--no-swap", "--reuse-mirror"],
     { cwd: ROOT, encoding: "utf8", maxBuffer: 1024 * 1024 * 64 },
   );
 
