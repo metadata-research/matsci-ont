@@ -225,6 +225,29 @@ const C = "http://example.org/C";
   );
 }
 
+// An inferred step is marked on the node whose placement the reasoner
+// supplied, and an asserted step next to it is not.
+{
+  const ancestryRow = (anc, parent, label, inferred) => ({
+    anc: uri(anc),
+    ...(parent ? { parent: uri(parent) } : {}),
+    ...(label ? { label: lit(label) } : {}),
+    ...(inferred === undefined ? {} : { inferred: { type: "literal", value: String(inferred) } }),
+  });
+  const rows = [
+    ancestryRow("http://x/e", "http://x/mid", "e", true),
+    ancestryRow("http://x/mid", "http://x/top", "mid", false),
+    ancestryRow("http://x/top", undefined, "top"),
+  ];
+  const ancestry = buildAncestry(rows, "http://x/e");
+  const marks = ancestry.chain.map((node) => `${node.label}:${node.inferredEdge ? "inferred" : "asserted"}`);
+  expect(
+    "an inferred step is marked and an asserted one is not",
+    marks.join(" ") === "top:asserted mid:asserted e:inferred",
+    marks.join(" "),
+  );
+}
+
 // Ancestry prefers an in-store parent, so an external parent does not cut
 // the chain short when a local chain to a root exists.
 {

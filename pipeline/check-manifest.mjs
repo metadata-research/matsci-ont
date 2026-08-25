@@ -54,14 +54,55 @@ function checkEntry(entry, file) {
   if (entry.allowWarnings !== undefined) {
     need("allowWarnings", typeof entry.allowWarnings === "boolean", "must be boolean when present");
   }
+  if (entry.reason !== undefined) {
+    need("reason", typeof entry.reason === "boolean", "must be boolean when present");
+  }
   if (entry.modules !== undefined) {
     need("modules", Array.isArray(entry.modules), "must be a list");
     if (Array.isArray(entry.modules)) {
       entry.modules.forEach((m, i) => {
         need(`modules[${i}].url`, isPinnedHttps(m?.url), "must be an https URL");
         need(`modules[${i}].sha256`, SHA256.test(m?.sha256 ?? ""), "must be 64 lowercase hex characters");
+        // Required whenever the source is reasoned: a module the reasoning
+        // catalog cannot name is loaded into the store but left out of the
+        // reasoning input.
+        if (entry.reason !== false) {
+          need(
+            `modules[${i}].importIri`,
+            isAbsoluteIri(m?.importIri),
+            "must be an absolute IRI on a source that is reasoned",
+          );
+        } else if (m?.importIri !== undefined) {
+          need(`modules[${i}].importIri`, isAbsoluteIri(m.importIri), "must be an absolute IRI");
+        }
       });
     }
+  }
+  // Imports resolved to an empty ontology, which is how a source loads
+  // without the ontologies it names until those are pinned themselves.
+  if (entry.importsToEmpty !== undefined) {
+    need("importsToEmpty", Array.isArray(entry.importsToEmpty), "must be a list");
+    if (Array.isArray(entry.importsToEmpty)) {
+      entry.importsToEmpty.forEach((iri, i) => {
+        need(`importsToEmpty[${i}]`, isAbsoluteIri(iri), "must be an absolute IRI");
+      });
+    }
+  }
+
+  // One import, one mapping. An IRI named in both lists would resolve to
+  // whichever the catalog wrote last, quietly reasoning over an empty
+  // ontology in place of a pinned module.
+  const mapped = new Set();
+  const twice = new Set();
+  for (const iri of [
+    ...(entry.modules ?? []).map((m) => m?.importIri).filter(Boolean),
+    ...(entry.importsToEmpty ?? []),
+  ]) {
+    if (mapped.has(iri)) twice.add(iri);
+    mapped.add(iri);
+  }
+  for (const iri of twice) {
+    errors.push(`${file}: ${iri} is mapped both to a module and to the empty ontology`);
   }
   return errors;
 }

@@ -15,9 +15,13 @@ export function entityUrl(iri, inferred) {
   return `/entity?iri=${encodeURIComponent(iri)}${inferred ? "&inferred=1" : ""}`;
 }
 
+// The readable tail of an IRI. A trailing slash is dropped first, so a
+// namespace IRI such as https://w3id.org/pmd/co/ shortens to "co" instead
+// of falling back to the whole IRI.
 export function localName(iri) {
-  const cut = Math.max(iri.lastIndexOf("#"), iri.lastIndexOf("/"));
-  return cut >= 0 && cut < iri.length - 1 ? iri.slice(cut + 1) : iri;
+  const trimmed = iri.endsWith("/") ? iri.slice(0, -1) : iri;
+  const cut = Math.max(trimmed.lastIndexOf("#"), trimmed.lastIndexOf("/"));
+  return cut >= 0 && cut < trimmed.length - 1 ? trimmed.slice(cut + 1) : trimmed;
 }
 
 export function termLink(iri, label, inferred) {

@@ -29,6 +29,19 @@ Three markers appear in the tree where they apply:
 - An inferred marker on a placement contributed by the reasoner, visible
   when the inferred view is selected on a source that has one.
 
+## The inferred view
+
+A source page and an entity page offer an inferred view where reasoning
+found placements the source does not state. The link switches between the
+two views, and it appears only for a source whose reasoning added
+something.
+
+In the inferred view the hierarchy holds both what the source states and
+what the reasoner derived, and each derived step carries the inferred
+marker. The other panels never change: the definition, the axioms, the
+references and the raw triples state what the source says, so a reader can
+always tell an assertion from a derivation.
+
 ## Entity pages
 
 An entity page opens with the attribution line, the identifier, and the

@@ -41,7 +41,9 @@ is one JSON file in `manifest/` with these fields:
 | `format` | `ttl`, `rdfxml`, `ntriples`, or `jsonld` |
 | `license` | SPDX identifier |
 | `republishable` | Whether serving the content publicly is permitted |
-| `modules` | Optional list of pinned module URLs with their own hashes |
+| `modules` | Optional list of pinned module URLs with their own hashes, each naming the `importIri` the main file imports |
+| `reason` | Optional, false to skip OWL reasoning over the source |
+| `importsToEmpty` | Optional list of import IRIs resolved to an empty ontology, for ontologies this manifest does not pin |
 | `notes` | Optional free text |
 
 Two rules are enforced, and the check script refuses an entry that breaks
@@ -55,7 +57,7 @@ pnpm check:manifest    # shape of every manifest entry
 pnpm ingest            # fetch, verify, validate, load into build/tdb2
 pnpm verify            # acceptance checks against the built store
 pnpm verify:full       # the same, plus a second build compared to the first
-pnpm test              # index precedence and comparison tiers
+pnpm test              # index precedence, comparison tiers, reasoning guards
 pnpm serve             # serve the store locally on port 3031
 ```
 
@@ -75,14 +77,20 @@ current sources warn.
 
 ## The derived graphs
 
-The ingest emits two graphs of its own after the sources load, both
-functions of the manifest and the loaded content:
+The ingest emits its own graphs after the sources load, all functions of
+the manifest and the loaded content:
 
 - **catalog**, one resource per source: title, canonical IRI, named graph,
   version, licence, download URL, digest, pinned modules, and triple count.
 - **definitions**, one entry per named class, property or concept that
   carries a label: the chosen label and definition, which property each came
   from, and the source key, version and licence.
+- **inferred/{key}**, one per reasoned source with a nonempty result: the
+  class placements reasoning added. See below.
+
+The catalogue also records what reasoning did for each source: the reasoner,
+the number of pairs it added, the number it entailed in total, the inferred
+graph, or the reason the source was not reasoned.
 
 Entities keep the IRI their publisher minted. This index states its own
 properties about them and never restates or re-licenses another publisher's
@@ -100,6 +108,28 @@ definitions at all, and it is 993 of the entries.
 Nothing in either graph reads the clock. A wall-clock stamp would make two
 builds of one manifest differ, so the ingest time is recorded in
 `build/ingest-report.json`, which is not part of the store.
+
+## Reasoning
+
+`pnpm ingest` reasons over every source the manifest does not exclude, using
+ROBOT with HermiT on the pinned Java. Reasoning runs here, on a workstation,
+and never on a host.
+
+The reasoner entails everything a source asserts, so most of what it returns
+is a restatement. An inferred graph keeps only what reasoning added: pairs
+the sources do not already state. That is what lets a page mark a placement
+as inferred and be right. Of the 1,581 pairs PMDco entails, 1,466 are
+already asserted and 115 are new. CHAMEO adds 2, and would add far more
+with the EMMO ontologies it imports, which this manifest does not yet pin.
+MDO adds none.
+
+Imports are never fetched. A module the manifest pins is named by its
+`importIri` and mapped to the pinned file. An import to an ontology this
+manifest does not hold is mapped to an empty one, which also drops the
+import declaration from the reasoner output. Every reasoner run carries
+proxy settings pointing at a closed port, so an attempt to resolve anything
+else fails at once rather than becoming a dependency nobody recorded. An
+inconsistent ontology fails the build.
 
 ## Comparing two builds
 

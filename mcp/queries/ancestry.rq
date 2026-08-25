@@ -2,20 +2,29 @@
 # own direct named parents, one query instead of a hop-by-hop walk. The
 # chain itself is assembled in code so the primary-parent choice is
 # deterministic and testable.
+#
+# FROM merges the asserted and inferred graphs into the query's default
+# graph, so a property path can compose a chain that alternates between
+# them. Walking each graph separately would miss any ancestor reachable
+# only through a mixed path, because an inferred graph holds only the pairs
+# the asserted one does not. In the asserted view both substitutions are
+# the same IRI and the merge is that one graph.
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
 PREFIX ont:  <@@ONT@@>
-SELECT DISTINCT ?anc ?parent ?label WHERE {
-  {
-    GRAPH <@@GRAPH@@> { <@@IRI@@> (rdfs:subClassOf|skos:broader)* ?anc }
-  } UNION {
-    GRAPH <@@INFGRAPH@@> { <@@IRI@@> (rdfs:subClassOf|skos:broader)* ?anc }
-  }
+SELECT DISTINCT ?anc ?parent ?label ?inferred
+FROM <@@GRAPH@@>
+FROM <@@INFGRAPH@@>
+FROM NAMED <@@DEFS@@>
+FROM NAMED <@@INFGRAPH@@>
+WHERE {
+  <@@IRI@@> (rdfs:subClassOf|skos:broader)* ?anc .
   FILTER(isIRI(?anc))
   OPTIONAL {
-    GRAPH ?g { ?anc rdfs:subClassOf|skos:broader ?parent }
+    ?anc rdfs:subClassOf|skos:broader ?parent .
     FILTER(isIRI(?parent))
-    FILTER(?g IN (<@@GRAPH@@>, <@@INFGRAPH@@>))
+    BIND(EXISTS { GRAPH <@@INFGRAPH@@> { ?anc rdfs:subClassOf|skos:broader ?parent } }
+         && <@@GRAPH@@> != <@@INFGRAPH@@> AS ?inferred)
   }
   OPTIONAL { GRAPH <@@DEFS@@> { ?anc ont:label ?label } }
 }

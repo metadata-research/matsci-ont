@@ -2,7 +2,7 @@
 // else. Substitution values reach queries only through the typed helpers in
 // lib/sparql.mjs.
 
-import { graphIris, baseUrl } from "../pipeline/lib/derive.mjs";
+import { graphIris, baseUrl, inferredGraphFor } from "../pipeline/lib/derive.mjs";
 import { select, checkIri, checkKey, literal, regexLiteral, safeHref } from "./lib/sparql.mjs";
 import { escape, attr, layout, errorPage, termLink, entityUrl, localName } from "./lib/html.mjs";
 import { buildForest } from "./lib/tree.mjs";
@@ -12,9 +12,12 @@ import { verbalize } from "./lib/axioms.mjs";
 const graphs = graphIris();
 const ONT = `${baseUrl()}vocab#`;
 
-const common = { ONT, CATALOG: graphs.catalog, DEFS: graphs.definitions };
-
-const inferredGraphFor = (key) => `${baseUrl()}graphs/inferred/${key}`;
+const common = {
+  ONT,
+  CATALOG: graphs.catalog,
+  DEFS: graphs.definitions,
+  INFPREFIX: `${baseUrl()}graphs/inferred/`,
+};
 
 async function catalogueRows() {
   return select("catalogue", common);
@@ -176,17 +179,26 @@ export async function entityPage(iri, inferred) {
   const ancestry = buildAncestry(ancestryRows, iri);
   const { axioms, disjoint, fallbacks } = verbalize(rows, iri);
 
+  const inferredMark = '<span class="mark inferred" title="Placed here by the reasoner">inferred</span>';
   const chainHtml = ancestry.chain
     .map((node, index) => {
       const text =
         node.iri === iri
           ? `<strong>${escape(node.label ?? localName(node.iri))}</strong>`
           : termLink(node.iri, node.label, showInferred) + (node.external ? ' <span class="mark">external</span>' : "");
-      return `<div style="padding-left:${index * 1.25}rem">↳ ${text}</div>`;
+      // The marker sits on the node whose step upward the reasoner
+      // supplied, so a reader can see which link in the chain is inferred.
+      const mark = node.inferredEdge ? ` ${inferredMark}` : "";
+      return `<div style="padding-left:${index * 1.25}rem">↳ ${text}${mark}</div>`;
     })
     .join("\n");
   const secondaryHtml = ancestry.secondary.length
-    ? `<p>Also below: ${ancestry.secondary.map((node) => termLink(node.iri, node.label, showInferred)).join(", ")}</p>`
+    ? `<p>Also below: ${ancestry.secondary
+        .map(
+          (node) =>
+            termLink(node.iri, node.label, showInferred) + (node.inferredEdge ? ` ${inferredMark}` : ""),
+        )
+        .join(", ")}</p>`
     : "";
   const childHtml = childRows
     .slice(0, 25)

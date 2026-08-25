@@ -7,6 +7,7 @@
 // source succeeds, so a failed run never leaves a half-built store.
 //
 //   node pipeline/ingest.mjs [--only=key,key] [--keep-going]
+//                            [--no-swap] [--no-reason]
 
 import { mkdir, rm, rename, writeFile } from "node:fs/promises";
 import { createReadStream } from "node:fs";
@@ -16,6 +17,7 @@ import { ROOT, jenaEnvironment, runJena, hashFile, download } from "./lib/tools.
 import { loadManifest, artifactsOf, extensionFor } from "./lib/manifest.mjs";
 import { graphCounts } from "./lib/compare.mjs";
 import { graphIris, catalogTurtle, definitionsTurtle, readEntities } from "./lib/derive.mjs";
+import { reasonAll } from "./reason.mjs";
 
 const CACHE_DIR = join(ROOT, "cache");
 const BUILD_DIR = join(ROOT, "build");
@@ -37,6 +39,8 @@ for (const argument of process.argv.slice(2)) {
     options.keepGoing = true;
   } else if (argument === "--no-swap") {
     options.noSwap = true;
+  } else if (argument === "--no-reason") {
+    options.noReason = true;
   } else {
     console.error(`unknown option ${argument}`);
     process.exit(2);
@@ -154,10 +158,28 @@ const derived = [];
 if (!options.only) {
   const work = join(BUILD_DIR, "derive-work");
   await mkdir(work, { recursive: true });
+
+  // Reasoning comes before the catalogue, which publishes what it did. A
+  // failure here reports like every other failure in this file, rather than
+  // as an unhandled rejection, and leaves the previous store in place.
+  let reasoning = [];
+  if (!options.noReason) {
+    try {
+      reasoning = await reasonAll(environment, entries, STAGING, join(BUILD_DIR, "reason-work"));
+    } catch (error) {
+      console.error(`\nFAIL: reasoning did not complete\n  ${error.message}`);
+      console.error("the previous store is unchanged");
+      process.exit(1);
+    }
+  }
+  for (const record of reasoning.filter((r) => r.reasoned && r.pairs > 0)) {
+    derived.push({ name: `inferred/${record.key}`, graphIri: record.graphIri });
+  }
+
   const counts = await graphCounts(environment, STAGING, work);
   const graphs = graphIris();
 
-  const catalog = catalogTurtle(entries, counts);
+  const catalog = catalogTurtle(entries, counts, reasoning);
   const definitions = definitionsTurtle(entries, await readEntities(
     environment,
     STAGING,

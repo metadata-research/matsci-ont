@@ -1,0 +1,7 @@
+# Extracts the inferred hierarchy from a reasoned ontology. The reasoning
+# step runs with --create-new-ontology, so the only subClassOf axioms
+# present are the inferences; this keeps the ones between named classes and
+# drops the blank-node class expressions.
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+CONSTRUCT { ?s rdfs:subClassOf ?o }
+WHERE { ?s rdfs:subClassOf ?o . FILTER(isIRI(?s) && isIRI(?o)) }

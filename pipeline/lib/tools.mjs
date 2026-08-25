@@ -3,7 +3,7 @@
 
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
-import { mkdir, readFile, writeFile, access } from "node:fs/promises";
+import { mkdir, readFile, writeFile, access, rm, rename } from "node:fs/promises";
 import { createReadStream } from "node:fs";
 import { join } from "node:path";
 
@@ -66,6 +66,69 @@ async function ensureTarball(name, pin) {
     throw new Error(`${name} extracted without ${pin.directory}`);
   }
   return directory;
+}
+
+// Downloads a single pinned file, verifies its digest, and returns its path.
+// A mismatch leaves nothing behind.
+async function ensureFile(name, pin) {
+  const path = join(TOOLS_DIR, pin.file);
+  if (await exists(path)) return path;
+
+  await mkdir(TOOLS_DIR, { recursive: true });
+  process.stderr.write(`fetching ${name} ${pin.version}\n`);
+  const partial = `${path}.partial`;
+  await download(pin.url, partial);
+
+  const actual = await hashFile(partial, "sha256");
+  if (actual !== pin.sha256) {
+    await rm(partial, { force: true });
+    throw new Error(
+      `${name} sha256 mismatch\n  expected ${pin.sha256}\n  actual   ${actual}`,
+    );
+  }
+  await rename(partial, path);
+  return path;
+}
+
+// The reasoning environment: the pinned ROBOT jar and the Java that runs it.
+// The proxy settings point at a closed port so an accidental attempt to
+// resolve an import over the network fails at once instead of becoming a
+// silent dependency of the build.
+export async function robotEnvironment() {
+  const pins = await loadPins();
+  const javaHome = await ensureTarball("java", pins.java);
+  const jar = await ensureFile("robot", pins.robot);
+  return {
+    pins,
+    javaHome,
+    jar,
+    java: join(javaHome, "bin", "java"),
+    guardFlags: [
+      "-Dhttp.proxyHost=127.0.0.1",
+      "-Dhttp.proxyPort=1",
+      "-Dhttps.proxyHost=127.0.0.1",
+      "-Dhttps.proxyPort=1",
+    ],
+  };
+}
+
+export function runRobot(environment, args, options = {}) {
+  const result = spawnSync(
+    environment.java,
+    [...environment.guardFlags, "-jar", environment.jar, ...args],
+    {
+      env: { ...process.env, JAVA_HOME: environment.javaHome },
+      encoding: "utf8",
+      maxBuffer: 1024 * 1024 * 256,
+      ...options,
+    },
+  );
+  if (result.error) throw result.error;
+  return {
+    status: result.status,
+    stdout: result.stdout ?? "",
+    stderr: result.stderr ?? "",
+  };
 }
 
 // Returns the environment the Jena command-line tools need, installing the

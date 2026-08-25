@@ -5,6 +5,10 @@ SELECT ?g ?s ?p ?label WHERE {
   GRAPH ?g { ?s ?p <@@IRI@@> }
   FILTER(!isBlank(?s))
   FILTER(?g != <@@DEFS@@> && ?g != <@@CATALOG@@>)
+  # As in entity.rq: references a source states, not placements the
+  # reasoner derived, which would otherwise appear here unmarked and
+  # contradict the children list on the same page.
+  FILTER(!STRSTARTS(STR(?g), "@@INFPREFIX@@"))
   OPTIONAL { GRAPH <@@DEFS@@> { ?s ont:label ?label } }
 }
 ORDER BY ?p ?s

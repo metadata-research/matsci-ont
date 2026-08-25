@@ -12,6 +12,13 @@
     "sha512": "ba65f5867d2d4741b2ed9e2af5a0d4fbb447909894ab2a0c6bc4dac8997f4fe339c87b13c48d45d054977769f0f8bf763ea346b1f7792d5cdc458041bd43a132",
     "directory": "apache-jena-fuseki-6.2.0"
   },
+  "robot": {
+    "version": "1.9.10",
+    "url": "https://github.com/ontodev/robot/releases/download/v1.9.10/robot.jar",
+    "sha256": "16a73c074f3df359a7338a84b4e0788785fe06117f931bb9796e9619ea776105",
+    "file": "robot-1.9.10.jar",
+    "comment": "OWL reasoning, BSD-3-Clause, bundling HermiT 1.4.5.456 and ELK 0.6.0. The release publishes no checksum asset, so this digest is the record. 82604728 bytes."
+  },
   "java": {
     "version": "21.0.12.1+1",
     "url": "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.12.1%2B1/OpenJDK21U-jre_x64_linux_hotspot_21.0.12.1_1.tar.gz",

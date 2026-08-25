@@ -1,5 +1,5 @@
-# Serves the entity page: every triple about the entity in every graph,
-# plus the blank-node structures hanging off it to depth five, which covers
+# Serves the entity page: every triple about the entity in every source
+# graph, plus the blank-node structures hanging off it to depth five, which covers
 # restriction axioms and intersection lists of up to about four members.
 # Anything deeper is absent from the axioms panel but the raw panel states
 # how far the closure reached. Blank node labels are consistent within one
@@ -23,5 +23,9 @@ SELECT ?g ?s ?p ?o WHERE {
       ?b3 ?q4 ?s . ?s ?p ?o .
       FILTER(isBlank(?b0) && isBlank(?b1) && isBlank(?b2) && isBlank(?b3) &&
              isBlank(?s)) } }
+  # Inferred graphs are excluded here. This panel states what a source
+  # says; a placement the reasoner derived belongs to the hierarchy card,
+  # where it is marked as inferred rather than shown as source data.
+  FILTER(!STRSTARTS(STR(?g), "@@INFPREFIX@@"))
 }
 ORDER BY ?g ?p ?o

@@ -60,6 +60,12 @@ export function graphIris() {
   };
 }
 
+// One inferred graph per source, so a reader can see which source's
+// reasoning produced a placement and a rebuild can replace one of them.
+export function inferredGraphFor(key) {
+  return `${baseUrl()}graphs/inferred/${key}`;
+}
+
 const escapeLiteral = (value) =>
   value
     .replace(/\\/g, "\\\\")
@@ -140,11 +146,13 @@ const PREFIXES = `@prefix dcterms: <http://purl.org/dc/terms/> .
 @prefix xsd:     <http://www.w3.org/2001/XMLSchema#> .
 `;
 
-export function catalogTurtle(manifest, counts) {
+export function catalogTurtle(manifest, counts, reasoning = []) {
   const base = baseUrl();
+  const byKey = new Map(reasoning.map((record) => [record.key, record]));
   const lines = [PREFIXES, `@prefix ont: <${base}vocab#> .`, ""];
   for (const entry of manifest) {
     const subject = `<${base}sources/${entry.key}>`;
+    const record = byKey.get(entry.key);
     lines.push(`${subject} a ont:Source, void:Dataset ;`);
     lines.push(`    ont:sourceKey "${escapeLiteral(entry.key)}" ;`);
     lines.push(`    dcterms:title "${escapeLiteral(entry.title)}" ;`);
@@ -157,6 +165,16 @@ export function catalogTurtle(manifest, counts) {
     lines.push(`    ont:sha256 "${entry.sha256}" ;`);
     for (const module of entry.modules ?? []) {
       lines.push(`    ont:module <${module.url}> ;`);
+    }
+    // The reasoning record: what produced the inferred graph, or why there
+    // is none. A source with no record predates reasoning entirely.
+    if (record?.reasoned) {
+      lines.push(`    ont:reasoner "${escapeLiteral(record.reasoner)}" ;`);
+      lines.push(`    ont:inferredPairs ${record.pairs} ;`);
+      lines.push(`    ont:entailedPairs ${record.entailed} ;`);
+      if (record.pairs > 0) lines.push(`    ont:inferredGraph <${record.graphIri}> ;`);
+    } else if (record) {
+      lines.push(`    ont:reasoningSkipped "${escapeLiteral(record.skipped)}" ;`);
     }
     lines.push(`    void:triples ${counts.get(entry.graphIri) ?? 0} .`);
     lines.push("");

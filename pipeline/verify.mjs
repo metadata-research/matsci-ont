@@ -12,7 +12,7 @@ import { ROOT, jenaEnvironment } from "./lib/tools.mjs";
 import { loadManifest } from "./lib/manifest.mjs";
 import { startFuseki, stopFuseki, query } from "./lib/fuseki.mjs";
 import { graphCounts, dumpBlinded, graphsIsomorphic } from "./lib/compare.mjs";
-import { graphIris, baseUrl } from "./lib/derive.mjs";
+import { graphIris, baseUrl, inferredGraphFor } from "./lib/derive.mjs";
 import { escape as escapeHtml } from "../mcp/lib/html.mjs";
 
 const STORE = join(ROOT, "build/tdb2");
@@ -59,8 +59,11 @@ record(
 );
 
 const graphs = graphIris();
+// An inferred graph is declared only for a source the manifest allows to be
+// reasoned, so one appearing for a skipped source is an undeclared graph.
 const declared = new Set([
   ...manifest.map((entry) => entry.graphIri),
+  ...manifest.filter((entry) => entry.reason !== false).map((entry) => inferredGraphFor(entry.key)),
   graphs.catalog,
   graphs.definitions,
 ]);
@@ -185,6 +188,74 @@ try {
     service.ok ? "the query was accepted" : `refused with HTTP ${service.status}`,
   );
 
+  // Reasoning: the recorded counts, and the record the catalogue publishes.
+  {
+    // Pairs the reasoner adds, after the ones the source already asserts
+    // are subtracted. A source can legitimately add none, as MDO does.
+    const expected = { pmdco: 115, mdo: 0, chameo: 2 };
+    const wrong = [];
+    for (const [key, pairs] of Object.entries(expected)) {
+      const actual = counts.get(inferredGraphFor(key)) ?? 0;
+      if (actual !== pairs) wrong.push(`${key}: ${actual}, expected ${pairs}`);
+    }
+    const skipped = await query(
+      server.base,
+      `SELECT ?why WHERE { GRAPH <${graphs.catalog}> {
+         ?s <${ont}sourceKey> "nist-imrr" ; <${ont}reasoningSkipped> ?why } }`,
+    );
+    const skipRecorded = skipped.ok && JSON.parse(skipped.text).results.bindings.length === 1;
+    record(
+      "reasoning produced the recorded pair counts",
+      wrong.length === 0 && skipRecorded,
+      wrong.length > 0
+        ? wrong.join("\n")
+        : `new pairs: pmdco 115, chameo 2, mdo 0; nist-imrr skipped${skipRecorded ? " and recorded" : " but NOT recorded"}`,
+    );
+
+    // The count the reasoner entailed before subtraction, recorded so the
+    // catalogue shows how much of a hierarchy is asserted rather than
+    // derived.
+    const entailed = await query(
+      server.base,
+      `SELECT ?key ?n WHERE { GRAPH <${graphs.catalog}> {
+         ?s <${ont}sourceKey> ?key ; <${ont}entailedPairs> ?n } }`,
+    );
+    const entailedByKey = entailed.ok
+      ? new Map(
+          JSON.parse(entailed.text).results.bindings.map((b) => [b.key.value, Number(b.n.value)]),
+        )
+      : new Map();
+    record(
+      "the catalogue records what was entailed before subtraction",
+      entailedByKey.get("pmdco") === 1581 &&
+        entailedByKey.get("chameo") === 211 &&
+        entailedByKey.get("mdo") === 13,
+      [...entailedByKey.entries()].map(([k, v]) => `${k} ${v}`).join(", "),
+    );
+
+    // An inferred pair the source already asserts would be noise, and its
+    // presence would mean the reasoning step lost --create-new-ontology.
+    const overlaps = [];
+    for (const entry of manifest) {
+      const inferred = inferredGraphFor(entry.key);
+      if (!(counts.get(inferred) > 0)) continue;
+      const overlap = await query(
+        server.base,
+        `SELECT (COUNT(*) AS ?n) WHERE {
+           GRAPH <${inferred}> { ?s ?p ?o }
+           GRAPH <${entry.graphIri}> { ?s ?p ?o }
+         }`,
+      );
+      const n = overlap.ok ? Number(JSON.parse(overlap.text).results.bindings[0].n.value) : -1;
+      if (n !== 0) overlaps.push(`${entry.key}: ${n}`);
+    }
+    record(
+      "no inferred pair repeats an asserted one",
+      overlaps.length === 0,
+      overlaps.join("\n") || "every inferred graph is disjoint from its source",
+    );
+  }
+
   // The browse application, started against the same store. The query URL
   // is set before the app is imported, because mcp/lib/sparql.mjs captures
   // it in a module-level constant at load time.
@@ -306,6 +377,53 @@ try {
           searchText.includes("pmdco") &&
           !searchText.includes("hasInteractionVolume"),
       );
+
+      // The inferred toggle shows a placement the asserted view does not.
+      const inferredOnly = await query(
+        server.base,
+        `SELECT ?c ?p WHERE {
+           GRAPH <${inferredGraphFor("pmdco")}> { ?c <http://www.w3.org/2000/01/rdf-schema#subClassOf> ?p }
+           FILTER NOT EXISTS { GRAPH <https://w3id.org/pmd/co/> {
+             ?c <http://www.w3.org/2000/01/rdf-schema#subClassOf> ?p } }
+         } LIMIT 1`,
+      );
+      const pair = inferredOnly.ok ? JSON.parse(inferredOnly.text).results.bindings[0] : undefined;
+      if (pair) {
+        const asserted = await page(`/entity?iri=${encodeURIComponent(pair.c.value)}`);
+        const withInferred = await page(
+          `/entity?iri=${encodeURIComponent(pair.c.value)}&inferred=1`,
+        );
+        const parentLink = `iri=${encodeURIComponent(pair.p.value)}`;
+        // The marker must be in the hierarchy card itself. Looking for it
+        // anywhere on the page would be satisfied by the children list,
+        // which has marked inferred rows since the browse application
+        // landed. The card runs from its own div to whichever of the
+        // children heading or the definition heading comes first; a regex
+        // to its closing tag would stop at the first nested row instead.
+        const start = withInferred.text.indexOf('<div class="hierarchy">');
+        const ends = ["<h3>Children", "<h2>Definition"]
+          .map((marker) => withInferred.text.indexOf(marker, start))
+          .filter((index) => index > start);
+        const card =
+          start < 0 ? "" : withInferred.text.slice(start, Math.min(...ends, withInferred.text.length));
+        record(
+          "the inferred toggle marks an inferred step in the hierarchy card",
+          !asserted.text.includes(parentLink) &&
+            withInferred.text.includes(parentLink) &&
+            card.includes("mark inferred"),
+          `${pair.c.value} under ${pair.p.value}`,
+        );
+
+        // The panels that state what a source says must not draw on the
+        // inferred graphs.
+        record(
+          "the asserted view shows no inferred triple in its panels",
+          !asserted.text.includes(parentLink),
+          asserted.text.includes(parentLink) ? "an inferred pair reached the asserted page" : "clean",
+        );
+      } else {
+        record("the inferred toggle shows a parent the asserted view does not", false, "no inferred-only pair found");
+      }
 
       const pmdcoGraph = JSON.parse((await page("/graph/pmdco.json")).text);
       const mdoGraph = JSON.parse((await page("/graph/mdo.json")).text);

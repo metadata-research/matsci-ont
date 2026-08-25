@@ -13,20 +13,24 @@
   "modules": [
     {
       "url": "https://raw.githubusercontent.com/LiUSemWeb/Materials-Design-Ontology/0a7983308359f398ac5902190b489ca773c0db7f/mdo-core.owl",
-      "sha256": "e26b6838098e259669710b81847d440ed7d16c57eaad2b6235d72c40e45e4ff3"
+      "sha256": "e26b6838098e259669710b81847d440ed7d16c57eaad2b6235d72c40e45e4ff3",
+      "importIri": "https://w3id.org/mdo/core/1.1/"
     },
     {
       "url": "https://raw.githubusercontent.com/LiUSemWeb/Materials-Design-Ontology/0a7983308359f398ac5902190b489ca773c0db7f/mdo-structure.owl",
-      "sha256": "451c95227eb44fa0618d71312a1e20537510300ad4aec51fa04bbed3496ce3e0"
+      "sha256": "451c95227eb44fa0618d71312a1e20537510300ad4aec51fa04bbed3496ce3e0",
+      "importIri": "https://w3id.org/mdo/structure/1.1/"
     },
     {
       "url": "https://raw.githubusercontent.com/LiUSemWeb/Materials-Design-Ontology/0a7983308359f398ac5902190b489ca773c0db7f/mdo-calculation.owl",
-      "sha256": "55e3818e6d613c47b2338c8ae42277d5a40d715c256b6e9312a2e91667544e0d"
+      "sha256": "55e3818e6d613c47b2338c8ae42277d5a40d715c256b6e9312a2e91667544e0d",
+      "importIri": "https://w3id.org/mdo/calculation/1.1/"
     },
     {
       "url": "https://raw.githubusercontent.com/LiUSemWeb/Materials-Design-Ontology/0a7983308359f398ac5902190b489ca773c0db7f/mdo-provenance.owl",
-      "sha256": "71555fc81d2a03b274bc1986068c97a940c016c96bb4818541c641dca149a581"
+      "sha256": "71555fc81d2a03b274bc1986068c97a940c016c96bb4818541c641dca149a581",
+      "importIri": "https://w3id.org/mdo/provenance/1.1/"
     }
   ],
-  "notes": "The repository has no releases and no tags, so every URL is pinned at commit 0a79833 (2024-01-15), which is immutable. mdo-full.owl is an owl:imports wrapper with no classes of its own, so the four modules (core, structure, calculation, provenance) are pinned alongside it and all load into the one graph. 34 MDO-namespace classes across the modules. Module versionIRIs are all under https://w3id.org/mdo/*/1.1/."
+  "notes": "The repository has no releases and no tags, so every URL is pinned at commit 0a79833 (2024-01-15), which is immutable. mdo-full.owl is an owl:imports wrapper with no classes of its own, so the four modules (core, structure, calculation, provenance) are pinned alongside it and all load into the one graph. 34 MDO-namespace classes across the modules. Module versionIRIs are all under https://w3id.org/mdo/*/1.1/. Each module records the versioned import IRI the wrapper names, which the reasoning catalog maps to the pinned file."
 }
