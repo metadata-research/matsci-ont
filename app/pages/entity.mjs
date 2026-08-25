@@ -17,10 +17,8 @@ import {
 } from "../lib/html.mjs"
 import { buildAncestry } from "../lib/hierarchy.mjs"
 import { verbalize } from "../lib/axioms.mjs"
+import { common, graphs, ONT } from "../lib/substitutions.mjs"
 import {
-  common,
-  graphs,
-  ONT,
   sourceByKey,
   sourceByGraph,
   hasInferred,

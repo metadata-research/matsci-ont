@@ -3,27 +3,14 @@
 //
 // Substitution values reach queries only through the typed guards in
 // lib/terms.mjs, which produce quoted literals and checked IRIs. Nothing
-// here builds a query by concatenation.
+// here builds a query by concatenation. The substitutions common to every
+// query are in lib/substitutions.mjs.
 
-import {
-  graphIris,
-  vocabularyIri,
-  inferredGraphFor,
-  inferredGraphPrefix
-} from "../../shared/vocabulary.mjs"
+import { inferredGraphFor } from "../../shared/vocabulary.mjs"
 import { checkIri, literal } from "../lib/terms.mjs"
 import { select } from "../lib/store.mjs"
 import { escape, attr } from "../lib/html.mjs"
-
-export const graphs = graphIris()
-export const ONT = vocabularyIri()
-
-export const common = {
-  ONT,
-  CATALOG: graphs.catalog,
-  DEFS: graphs.definitions,
-  INFPREFIX: inferredGraphPrefix()
-}
+import { common } from "../lib/substitutions.mjs"
 
 export async function catalogueRows() {
   return select("catalogue", common)

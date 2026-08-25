@@ -3,7 +3,8 @@
 import { regexLiteral } from "../lib/terms.mjs"
 import { select } from "../lib/store.mjs"
 import { escape, layout, termLink } from "../lib/html.mjs"
-import { common, catalogueRows } from "./common.mjs"
+import { common } from "../lib/substitutions.mjs"
+import { catalogueRows } from "./common.mjs"
 
 export async function searchPage(q) {
   const query = (q ?? "").trim().slice(0, 200)

@@ -6,12 +6,7 @@
 // handling and tested as such; what remains here is the transport and the
 // shapes returned.
 
-import {
-  graphIris,
-  vocabularyIri,
-  inferredGraphFor,
-  inferredGraphPrefix
-} from "../shared/vocabulary.mjs"
+import { inferredGraphFor } from "../shared/vocabulary.mjs"
 import {
   checkIri,
   checkKey,
@@ -22,16 +17,7 @@ import {
 import { select, readCapped, MAX_ANSWER_BYTES } from "./lib/store.mjs"
 import { checkQueryForm, withRowLimit } from "./lib/sparql.mjs"
 import { queryUrl } from "../shared/endpoint.mjs"
-
-const graphs = graphIris()
-const ONT = vocabularyIri()
-
-const common = {
-  ONT,
-  CATALOG: graphs.catalog,
-  DEFS: graphs.definitions,
-  INFPREFIX: inferredGraphPrefix()
-}
+import { common, graphs, ONT } from "./lib/substitutions.mjs"
 
 export const ROW_CAP = 500
 // Matches arq:queryTimeout in the reviewed Fuseki configuration.

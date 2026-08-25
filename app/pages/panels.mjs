@@ -8,7 +8,7 @@
 
 import { safeHref } from "../lib/terms.mjs"
 import { escape, attr, termLink, localName } from "../lib/html.mjs"
-import { graphs } from "./common.mjs"
+import { graphs } from "../lib/substitutions.mjs"
 
 export const INFERRED_MARK =
   '<span class="mark inferred" title="Placed here by the reasoner">inferred</span>'

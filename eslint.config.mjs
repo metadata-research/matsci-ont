@@ -33,8 +33,10 @@ export default defineConfig([
   {
     // The layering, enforced rather than described. shared/ holds what both
     // need, so neither layer has a reason to import the other. The one
-    // deliberate crossing is the end-to-end harness in pipeline/verify.mjs,
-    // which loads the application on purpose and says so.
+    // deliberate crossing runs the other way: the checks under
+    // pipeline/lib/checks/ load the application on purpose, because they
+    // check the pages it renders and the guards it applies. Only this
+    // direction is allowed, since a served host has no build toolchain.
     files: ["app/**/*.mjs"],
     rules: {
       "no-restricted-imports": [
