@@ -361,8 +361,10 @@ export function maskQuery(query) {
       i = stop
       continue
     }
+    let quoted = false
     for (const quote of ['"""', "'''", '"', "'"]) {
       if (rest.startsWith(quote)) {
+        quoted = true
         let j = i + quote.length
         while (j < query.length) {
           if (query[j] === "\\") {
@@ -379,7 +381,12 @@ export function maskQuery(query) {
         break
       }
     }
-    if (out[i] !== "") continue
+    // The quote branch advanced past a whole literal, so the next
+    // character has not been examined yet and must go round again.
+    // Testing out[i] instead read the index after the advance, where
+    // nothing had been written, so the character following a closing
+    // quote skipped the comment and IRI checks entirely.
+    if (quoted) continue
     out[i] = query[i]
     i += 1
   }

@@ -22,6 +22,10 @@ import { handleMcpRequest, MAX_REQUEST_BYTES } from "./mcp.mjs"
 
 const require = createRequire(import.meta.url)
 
+// The routes a program calls rather than reads. They answer JSON on every
+// path, including refusal.
+const JSON_ROUTES = /^\/(grounding$|graph\/[a-z0-9-]+\.json$)/
+
 export const DEFAULT_APP_PORT = Number(process.env.MATSCI_ONT_APP_PORT ?? 3100)
 
 // Assets are the pinned pnpm packages served from node_modules plus the one
@@ -188,12 +192,29 @@ export function startApp(port = DEFAULT_APP_PORT) {
         .end(result.body)
     } catch (error) {
       if (error instanceof RejectedInput) {
+        // A route a program calls answers in the shape it promised.
+        // Handing an HTML page to a caller expecting JSON turns a clear
+        // rejection into a parse failure at the other end.
+        if (JSON_ROUTES.test(pathname)) {
+          response
+            .writeHead(400, {
+              "Content-Type": "application/json; charset=utf-8"
+            })
+            .end(JSON.stringify({ error: error.message }))
+          return
+        }
         response
           .writeHead(404, { "Content-Type": "text/html; charset=utf-8" })
           .end(errorPage(404, "No such page."))
         return
       }
       process.stderr.write(`${pathname}: ${error.message}\n`)
+      if (JSON_ROUTES.test(pathname)) {
+        response
+          .writeHead(502, { "Content-Type": "application/json; charset=utf-8" })
+          .end(JSON.stringify({ error: "The store did not answer." }))
+        return
+      }
       response
         .writeHead(502, { "Content-Type": "text/html; charset=utf-8" })
         .end(

@@ -12,8 +12,20 @@ import {
 } from "../pipeline/lib/fuseki.mjs"
 import { startApp, DEFAULT_APP_PORT } from "./app.mjs"
 
-const fuseki = await startFuseki({ storeLocation: join(ROOT, "build/tdb2") })
-const app = await startApp()
+// The application can fail to start, a port already in use being the
+// common way, and a store left running holds the TDB2 lock against every
+// later build.
+let fuseki
+let app
+try {
+  fuseki = await startFuseki({ storeLocation: join(ROOT, "build/tdb2") })
+  app = await startApp()
+} catch (error) {
+  process.stderr.write(`${error.message}\n`)
+  app?.close()
+  if (fuseki) await stopFuseki(fuseki)
+  process.exit(1)
+}
 
 console.log(`store  ${fuseki.base}/query (port ${DEFAULT_PORT})`)
 console.log(`browse http://localhost:${DEFAULT_APP_PORT}/`)

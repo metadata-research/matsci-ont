@@ -7,8 +7,14 @@
 import { verbalize, renderExpression, subgraphOf } from "./lib/axioms.mjs"
 import { buildForest } from "./lib/tree.mjs"
 import { buildAncestry } from "./lib/hierarchy.mjs"
-import { checkIri, checkKey, regexLiteral, safeHref } from "./lib/sparql.mjs"
-import { allowedSources } from "./data.mjs"
+import {
+  checkIri,
+  checkKey,
+  literal,
+  regexLiteral,
+  safeHref
+} from "./lib/sparql.mjs"
+import { allowedSources, maskQuery, withRowLimit, queryForm } from "./data.mjs"
 import { escape } from "./lib/html.mjs"
 
 const failures = []
@@ -334,6 +340,78 @@ const C = "http://example.org/C"
   expect(
     "HTML escaping covers the four",
     escape('<a b="c">&') === "&lt;a b=&quot;c&quot;&gt;&amp;"
+  )
+}
+
+// The escapers that keep caller text inside the SPARQL construct it
+// belongs to. Deleting the quote escape in literal() left every suite and
+// every verify check green, which is the definition of untested.
+{
+  expect(
+    "literal escapes a quote, so text cannot close its own literal",
+    literal('a"b') === '"a\\"b"',
+    literal('a"b')
+  )
+  expect(
+    "literal escapes a backslash before anything else",
+    literal("a\\b") === '"a\\\\b"',
+    literal("a\\b")
+  )
+  expect(
+    "literal escapes the newlines that would end a Turtle literal",
+    literal("a\nb\rc") === '"a\\nb\\rc"',
+    literal("a\nb\rc")
+  )
+  expect(
+    "a term that closes a literal and adds a filter stays one literal",
+    literal('x" ) FILTER(1=1) #') === '"x\\" ) FILTER(1=1) #"'
+  )
+  // regexLiteral escapes twice over: once so the regex matches the
+  // character, once so the SPARQL literal survives the parser.
+  expect(
+    "regexLiteral neutralises a regex metacharacter",
+    regexLiteral(".*") === String.raw`"\\.\\*"`,
+    regexLiteral(".*")
+  )
+  expect(
+    "regexLiteral also escapes the quote literal() would",
+    regexLiteral('a"b').includes('\\"'),
+    regexLiteral('a"b')
+  )
+}
+
+// The masker decides what counts as syntax. A character following a
+// closing quote used to skip every check, so a comment glued to a literal
+// hid its contents from the keyword scan.
+{
+  const masked = maskQuery('SELECT ?s WHERE { ?s ?p "x"#FROM hidden\n }')
+  expect(
+    "a comment straight after a literal is masked",
+    !masked.includes("FROM"),
+    masked
+  )
+  expect(
+    "an IRI straight after a literal is masked",
+    !maskQuery('X "a"<http://x/secret> Z').includes("secret"),
+    maskQuery('X "a"<http://x/secret> Z')
+  )
+  expect(
+    "masking preserves length and line structure",
+    maskQuery('a "b" # c\nd').length === 'a "b" # c\nd'.length &&
+      maskQuery('a "b" # c\nd').includes("\n")
+  )
+  expect(
+    "a variable named from is not a dataset clause",
+    withRowLimit("SELECT ?from WHERE { ?from ?p ?o }", 5) !== null
+  )
+  expect(
+    "a real dataset clause is left alone",
+    withRowLimit("SELECT ?s FROM <http://g> WHERE { ?s ?p ?o }", 5) === null
+  )
+  expect(
+    "an update is refused whatever precedes it",
+    queryForm("# SELECT\nINSERT DATA { }") === "INSERT" &&
+      queryForm('SELECT ?s WHERE { ?s ?p "INSERT DATA" }') === "SELECT"
   )
 }
 

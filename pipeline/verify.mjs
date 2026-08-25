@@ -269,12 +269,21 @@ try {
         `SELECT ?graph ?n WHERE { GRAPH ?g { ?graph <http://rdfs.org/ns/void#triples> ?n }
            FILTER(STRSTARTS(STR(?g), "https://ego.cci.drexel.edu/graphs/")) }`
       )
+      // Every mirror the publisher describes must match, and a mirror the
+      // publisher does not describe is reported rather than skipped.
+      // Reporting agreement when the query fails, or when only some
+      // mirrors were compared, would pass on a store that had lost
+      // content.
       const drift = []
-      if (stated.ok) {
+      const compared = new Set()
+      if (!stated.ok) {
+        drift.push("the published descriptions could not be read")
+      } else {
         for (const binding of JSON.parse(stated.text).results.bindings) {
           const graph = binding.graph.value
           const entry = mirrors.find((e) => e.graphIri === graph)
           if (!entry) continue
+          compared.add(entry.key)
           const loaded = counts.get(graph) ?? 0
           if (loaded !== Number(binding.n.value)) {
             drift.push(
@@ -283,10 +292,19 @@ try {
           }
         }
       }
+      // The meta graph describes the other four, not itself, so it is the
+      // one mirror with no published count of its own.
+      const describes = mirrors.filter((entry) => entry.key !== "sam-meta")
+      for (const entry of describes) {
+        if (!compared.has(entry.key)) {
+          drift.push(`${entry.key}: the publisher states no count for it`)
+        }
+      }
       record(
-        "a mirrored graph holds what its publisher says it holds",
+        "every mirrored graph holds what its publisher says it holds",
         drift.length === 0,
-        drift.join("\n") || "counts agree with the published description"
+        drift.join("\n") ||
+          `${compared.size} of ${describes.length} compared against the published description`
       )
 
       const undeclared = await query(
@@ -472,14 +490,30 @@ try {
         `${childIris.length} children in the store, ${childrenOnPage.length} linked on the page`
       )
 
-      // The NIST vocabulary renders from skos:broader with no orphan flood:
-      // its tree shows far fewer roots than its 993 concepts.
+      // The NIST vocabulary has no subClassOf at all, so its tree exists
+      // only if skos:broader is followed. Counting list openers proved
+      // nothing, because any non-empty tree has them, and a threshold on
+      // edge count was a guess. A concept renders as a collapsible section
+      // exactly when it has children in the index, so the sections and the
+      // distinct in-set parents are the same number, and a tree that had
+      // stopped following broader would have none.
       const nistHtml = (await page("/source/nist-imrr")).text
-      const nistRoots = (nistHtml.match(/<ul>\s*<li>/g) ?? []).length
+      const nested = (nistHtml.match(/<details/g) ?? []).length
+      const parents = await query(
+        server.base,
+        `SELECT (COUNT(DISTINCT ?p) AS ?n) WHERE {
+           GRAPH <https://data.nist.gov/od/dm/nmrr/vocab/> {
+             ?c <http://www.w3.org/2004/02/skos/core#broader> ?p }
+           GRAPH <${graphs.definitions}> { ?p <${ont}sourceKey> "nist-imrr" }
+           GRAPH <${graphs.definitions}> { ?c <${ont}sourceKey> "nist-imrr" } }`
+      )
+      const inSetParents = parents.ok
+        ? Number(JSON.parse(parents.text).results.bindings[0].n.value)
+        : -1
       record(
-        "the NIST tree renders from skos:broader without an orphan flood",
-        nistHtml.includes("classes") && nistRoots > 0,
-        `${nistRoots} top-level list opener(s)`
+        "the NIST tree nests once per parent, so skos:broader was followed",
+        inSetParents > 0 && nested === inSetParents,
+        `${nested} nested section(s), ${inSetParents} parent(s) in the data`
       )
 
       const fatigue = await page(
