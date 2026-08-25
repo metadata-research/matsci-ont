@@ -16,6 +16,7 @@ import {
   graphPage,
 } from "./pages.mjs";
 import { errorPage } from "./lib/html.mjs";
+import { grounding } from "./data.mjs";
 import { RejectedInput } from "./lib/sparql.mjs";
 import { handleMcpRequest, MAX_REQUEST_BYTES } from "./mcp.mjs";
 
@@ -38,6 +39,19 @@ const ASSETS = {
 async function handle(url) {
   if (url.pathname === "/") {
     return { status: 200, type: "text/html", body: await cataloguePage() };
+  }
+  // The grounding route: definition text for a term, as JSON, for a
+  // service that will show it to a reader. Every entry names its source
+  // and licence because the caller has to pass those on.
+  if (url.pathname === "/grounding") {
+    const sources = url.searchParams.get("sources");
+    const limit = url.searchParams.get("limit");
+    const answer = await grounding(url.searchParams.get("q"), {
+      sources: sources ? sources.split(",").filter(Boolean) : undefined,
+      limit: limit === null ? undefined : Number(limit),
+      includeMirror: url.searchParams.get("includeMirror") === "1",
+    });
+    return { status: 200, type: "application/json", body: JSON.stringify(answer, null, 2) };
   }
   if (url.pathname === "/search") {
     return { status: 200, type: "text/html", body: await searchPage(url.searchParams.get("q")) };

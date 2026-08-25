@@ -8,6 +8,7 @@ import { verbalize, renderExpression, subgraphOf } from "./lib/axioms.mjs";
 import { buildForest } from "./lib/tree.mjs";
 import { buildAncestry } from "./lib/hierarchy.mjs";
 import { checkIri, checkKey, regexLiteral, safeHref } from "./lib/sparql.mjs";
+import { allowedSources } from "./data.mjs";
 import { escape } from "./lib/html.mjs";
 
 const failures = [];
@@ -303,6 +304,52 @@ const C = "http://example.org/C";
     regexLiteral("a.b(c)"),
   );
   expect("HTML escaping covers the four", escape('<a b="c">&') === "&lt;a b=&quot;c&quot;&gt;&amp;");
+}
+
+// Which sources may ground an answer. The clearance rule is the one that
+// keeps content with no declared licence out of text a reader will see,
+// and no option may lift it.
+{
+  const catalogue = [
+    { key: "pmdco", clearedForPublication: true },
+    { key: "mdo", clearedForPublication: true },
+    { key: "sam-vocabulary", clearedForPublication: false, mirrorOf: "https://x/dataset" },
+  ];
+  expect(
+    "an uncleared mirror is excluded by default",
+    allowedSources(catalogue).keys.join(",") === "pmdco,mdo",
+    allowedSources(catalogue).keys.join(","),
+  );
+  expect(
+    "asking for mirrors cannot include an uncleared one",
+    allowedSources(catalogue, { includeMirror: true }).keys.join(",") === "pmdco,mdo",
+    allowedSources(catalogue, { includeMirror: true }).keys.join(","),
+  );
+  expect(
+    "asking for mirrors reports that none is available",
+    allowedSources(catalogue, { includeMirror: true }).mirrorsAvailable === false,
+  );
+  expect(
+    "a cleared mirror is included only when asked for",
+    allowedSources(
+      [{ key: "m", clearedForPublication: true, mirrorOf: "https://x" }],
+      { includeMirror: true },
+    ).keys.join(",") === "m" &&
+      allowedSources([{ key: "m", clearedForPublication: true, mirrorOf: "https://x" }]).keys
+        .length === 0,
+  );
+  expect(
+    "a source filter narrows within what is allowed",
+    allowedSources(catalogue, { sources: ["pmdco", "sam-vocabulary"] }).keys.join(",") === "pmdco",
+    allowedSources(catalogue, { sources: ["pmdco", "sam-vocabulary"] }).keys.join(","),
+  );
+  let rejected = false;
+  try {
+    allowedSources(catalogue, { sources: ["../etc"] });
+  } catch {
+    rejected = true;
+  }
+  expect("a source filter refuses a key that is not one", rejected);
 }
 
 if (failures.length > 0) {

@@ -166,6 +166,14 @@ is built on rival definitions, so there is no single answer in the graph.
 The index takes the most settled status and, among equals, the lowest
 revision, and records how many rivals there were so the choice is visible.
 
+## Grounding
+
+`GET /grounding?q=` returns definition text for a term with its source,
+version and licence, ranked so the closest match comes first. It exists so
+a service drafting a definition can show a reader what published
+ontologies already say. [The grounding guide](docs/guide/grounding.md)
+gives the parameters and the ranking, and what the route never returns.
+
 ## Comparing two builds
 
 `pnpm verify:full` builds the store a second time and compares the two in

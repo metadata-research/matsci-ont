@@ -227,6 +227,75 @@ export async function findEntities(q, { sources, limit } = {}) {
   };
 }
 
+// Which sources a grounding lookup may draw on.
+//
+// A source not cleared for publication never appears, whatever else is
+// asked for. The route hands definition text to a caller who will put it
+// in front of a reader, and the clearance flag is the record that its
+// licence permits that.
+//
+// A mirror is excluded again by default, for a different reason: this
+// route exists to serve MatSci-SAM, and returning its own vocabulary to it
+// would be circular. `includeMirror` lifts that, but it cannot lift the
+// clearance rule, so while the MatSci-SAM licence is undeclared the option
+// can add nothing. The answer says so rather than returning silently.
+export function allowedSources(catalogue, { sources, includeMirror } = {}) {
+  const cleared = catalogue.filter((source) => source.clearedForPublication);
+  const withoutMirrors = includeMirror ? cleared : cleared.filter((source) => !source.mirrorOf);
+  if (!sources || sources.length === 0) {
+    return {
+      keys: withoutMirrors.map((source) => source.key),
+      mirrorsAvailable: cleared.some((source) => source.mirrorOf),
+    };
+  }
+  const asked = new Set(sources.map((key) => checkKey(key)));
+  return {
+    keys: withoutMirrors.filter((source) => asked.has(source.key)).map((source) => source.key),
+    mirrorsAvailable: cleared.some((source) => source.mirrorOf),
+  };
+}
+
+export async function grounding(q, { sources, limit, includeMirror } = {}) {
+  const text = String(q ?? "").trim();
+  if (text === "") throw new RejectedInput("a grounding lookup needs a term");
+  const cap = checkLimit(limit, 10, 50);
+
+  const catalogue = await listSources();
+  const { keys, mirrorsAvailable } = allowedSources(catalogue, { sources, includeMirror });
+  const note =
+    includeMirror && !mirrorsAvailable
+      ? "No mirrored source is cleared for publication, so includeMirror added nothing."
+      : undefined;
+
+  if (keys.length === 0) {
+    return { query: text, results: [], truncated: false, ...(note ? { note } : {}) };
+  }
+
+  const titles = new Map(catalogue.map((source) => [source.key, source.title]));
+  const rows = await select("grounding", {
+    ...common,
+    TEXT: literal(text.slice(0, 200)),
+    REGEX: regexLiteral(text.slice(0, 200)),
+    SOURCEFILTER: `FILTER(?key IN (${keys.map((key) => `"${key}"`).join(", ")}))`,
+    LIMIT: String(cap + 1),
+  });
+
+  return {
+    query: text,
+    results: rows.slice(0, cap).map((row) => ({
+      term: row.label.value,
+      definition: row.definition.value,
+      source: titles.get(row.key.value) ?? row.key.value,
+      sourceIri: row.iri.value,
+      sourceKey: row.key.value,
+      version: row.version.value,
+      license: row.license.value,
+    })),
+    truncated: rows.length > cap,
+    ...(note ? { note } : {}),
+  };
+}
+
 const UPDATE_FORMS = [
   "INSERT",
   "DELETE",

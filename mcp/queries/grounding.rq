@@ -1,0 +1,31 @@
+# Serves the grounding route: definition text for a term, ranked so the
+# closest match comes first.
+#
+# The tier is computed here rather than in code so the ordering and the cap
+# are both applied by the store. Ranking after the fact would need every
+# candidate transferred first, which is the mistake the row cap on the
+# query tools already corrected.
+#
+#   0  the label is the term
+#   1  the label contains the term as a whole word
+#   2  only the definition contains it
+#
+# An entry with no definition cannot ground anything, so the pattern
+# requires one rather than leaving it optional.
+PREFIX ont: <@@ONT@@>
+SELECT ?iri ?label ?definition ?key ?version ?license ?tier WHERE {
+  GRAPH <@@DEFS@@> {
+    ?iri ont:label ?label ;
+         ont:definition ?definition ;
+         ont:sourceKey ?key ;
+         ont:sourceVersion ?version ;
+         ont:license ?license .
+    @@SOURCEFILTER@@
+    BIND(
+      IF(LCASE(STR(?label)) = LCASE(@@TEXT@@), 0,
+      IF(REGEX(STR(?label), CONCAT("\\b", @@REGEX@@), "i"), 1, 2)) AS ?tier)
+    FILTER(?tier < 2 || REGEX(STR(?definition), CONCAT("\\b", @@REGEX@@), "i"))
+  }
+}
+ORDER BY ?tier ?key ?label
+LIMIT @@LIMIT@@

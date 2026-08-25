@@ -535,6 +535,49 @@ try {
         record("the inferred toggle shows a parent the asserted view does not", false, "no inferred-only pair found");
       }
 
+      // The grounding route: definition text a caller can put in front of
+      // a reader, with what it needs to credit the source.
+      const ground = async (query) => JSON.parse((await page(`/grounding?${query}`)).text);
+      const energy = await ground("q=energy&limit=8");
+      const groundedSources = new Set(energy.results.map((row) => row.sourceKey));
+      record(
+        "grounding answers from more than one source, with licences",
+        groundedSources.size > 1 &&
+          energy.results.every((row) => row.license && row.definition && row.sourceIri),
+        `${energy.results.length} results from ${[...groundedSources].join(", ")}`,
+      );
+      record(
+        "an exact label match is ranked first",
+        energy.results[0]?.term.toLowerCase() === "energy",
+        energy.results[0]?.term,
+      );
+      record(
+        "the limit is honored and truncation is reported",
+        energy.results.length === 8 &&
+          energy.truncated === true &&
+          (await ground("q=energy&limit=2")).results.length === 2,
+        `${energy.results.length} results, truncated ${energy.truncated}`,
+      );
+
+      // Two runs return the same order, so a caller quoting a result can
+      // rely on it.
+      const repeat = await ground("q=energy&limit=8");
+      record(
+        "grounding returns the same order twice",
+        JSON.stringify(repeat.results) === JSON.stringify(energy.results),
+      );
+
+      // A source not cleared for publication never grounds anything, and
+      // asking for mirrors cannot lift that.
+      const asked = await ground("q=sintering&includeMirror=1");
+      const uncleared = manifest.filter((entry) => !entry.republishable).map((entry) => entry.key);
+      record(
+        "no source that is not cleared grounds anything, even when asked for",
+        asked.results.every((row) => !uncleared.includes(row.sourceKey)) &&
+          typeof asked.note === "string",
+        asked.note ?? "no note explaining the empty addition",
+      );
+
       // The MCP endpoint answers, and only on the loopback interface. The
       // tool surface itself is exercised by mcp/test-mcp.mjs with the
       // client from the same SDK.
