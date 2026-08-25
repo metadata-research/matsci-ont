@@ -1,5 +1,5 @@
 {
-  "comment": "Entities that must resolve in the built store. Each is a class or concept named in the MatSci-SAM external vocabulary assessment as a mapping target, so losing one means the source changed shape under its pin.",
+  "comment": "What the built store must contain, measured against the pinned versions in the manifest. Verification states the rules; this file states the data they are checked against, so a source changing shape under its pin shows up as an edit here rather than as a number buried in a check.",
   "entities": [
     {
       "iri": "https://w3id.org/pmd/co/PMD_0000934",
@@ -16,5 +16,55 @@
       "source": "chameo",
       "expectLabel": "FatigueTesting"
     }
-  ]
+  ],
+  "reasoning": {
+    "comment": "newPairs is what HermiT adds once the pairs the source already asserts are subtracted; entailedPairs is what it derived before that subtraction. A source may legitimately add none, as MDO does. Sources in skipped must record in the catalogue why they were not reasoned.",
+    "sources": {
+      "pmdco": { "newPairs": 115, "entailedPairs": 1581 },
+      "chameo": { "newPairs": 2, "entailedPairs": 211 },
+      "mdo": { "newPairs": 0, "entailedPairs": 13 }
+    },
+    "skipped": ["nist-imrr"]
+  },
+  "browse": {
+    "comment": "Pages that must render particular content, chosen so that a silent regression in one of the harder paths shows up: subclass children, a SKOS-only tree, definition precedence, axiom verbalization, and the node cap on the graph export.",
+    "children": {
+      "source": "pmdco",
+      "label": "material",
+      "expect": 14
+    },
+    "tree": {
+      "source": "nist-imrr"
+    },
+    "definition": {
+      "source": "chameo",
+      "iri": "https://w3id.org/emmo/domain/characterisation-methodology/chameo#FatigueTesting",
+      "expectVersion": "1.0.3",
+      "expectLicense": "CC-BY-4.0"
+    },
+    "cardinality": {
+      "iri": "https://w3id.org/pmd/co/PMD_0010100",
+      "expect": "exactly 1"
+    },
+    "inferred": {
+      "source": "pmdco"
+    },
+    "search": {
+      "term": "sinter",
+      "expectTitles": ["PMD Core Ontology", "Materials Data Vocabulary"],
+      "expectLicense": "CC-BY-4.0",
+      "expectAbsent": "hasInteractionVolume"
+    },
+    "graphExport": {
+      "truncated": "pmdco",
+      "whole": "mdo"
+    }
+  },
+  "grounding": {
+    "comment": "The grounding route answers with definition text a caller can put in front of a reader. The term is one several sources define, so a single-source answer means the index has stopped spanning them.",
+    "term": "energy",
+    "limit": 8,
+    "expectFirst": "energy",
+    "mirrorTerm": "sintering"
+  }
 }

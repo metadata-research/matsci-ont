@@ -1,0 +1,7 @@
+# Definitions entries that name no licence. Such an entry would be handed
+# to a caller with nothing to say about what may be done with it, which the
+# grounding contract must never do.
+SELECT (COUNT(*) AS ?n) WHERE {
+  GRAPH <@@DEFS@@> { ?s <@@ONT@@label> ?label }
+  FILTER NOT EXISTS { GRAPH <@@DEFS@@> { ?s <@@ONT@@license> ?license } }
+}

@@ -1,0 +1,8 @@
+# Mirrors marked as not cleared for republication. Every mirror must be
+# counted here: one missing would be a mirror the catalogue is willing to
+# serve onward while nobody has stated a licence for it.
+SELECT (COUNT(*) AS ?n) WHERE {
+  GRAPH <@@CATALOG@@> {
+    ?s <@@ONT@@republishable> false ; <@@ONT@@mirrorOf> ?dataset
+  }
+}

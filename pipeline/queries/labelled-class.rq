@@ -1,0 +1,8 @@
+# A class in one source graph carrying an exact English label, used to
+# reach a fixture class by name rather than by hardcoded IRI.
+SELECT ?c WHERE {
+  GRAPH <@@GRAPH@@> {
+    ?c <http://www.w3.org/2000/01/rdf-schema#label> "@@LABEL@@"@en
+  }
+}
+LIMIT 1

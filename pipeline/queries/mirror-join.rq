@@ -1,0 +1,11 @@
+# The reason the mirror exists: one query reaching a vocabulary term and an
+# ontology class together. The join is by label because the mirrored
+# vocabulary publishes no skos:*Match mappings.
+SELECT (COUNT(DISTINCT ?term) AS ?terms) (COUNT(*) AS ?pairs) WHERE {
+  GRAPH <@@DEFS@@> {
+    ?term <@@ONT@@sourceKey> "@@VOCABKEY@@" ; <@@ONT@@label> ?label .
+    ?class <@@ONT@@label> ?classLabel ; <@@ONT@@sourceKey> ?other .
+    FILTER(?other != "@@VOCABKEY@@")
+    FILTER(LCASE(STR(?label)) = LCASE(STR(?classLabel)))
+  }
+}

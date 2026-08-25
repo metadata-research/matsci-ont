@@ -5,36 +5,14 @@
 // caller cannot see: a harness that set the variable one statement too
 // late queried a different store and said nothing.
 
-import { readFile } from "node:fs/promises"
-import { join } from "node:path"
 import { queryUrl } from "../../shared/endpoint.mjs"
+import { queryLoader } from "../../shared/queries.mjs"
 
-const QUERY_DIR = new URL("../queries/", import.meta.url).pathname
-
-const queryCache = new Map()
-
-export async function namedQuery(name, substitutions) {
-  if (!queryCache.has(name)) {
-    queryCache.set(name, await readFile(join(QUERY_DIR, `${name}.rq`), "utf8"))
-  }
-  const template = queryCache.get(name)
-  const values = substitutions ?? {}
-  // One pass over the template, so a value is never scanned for tokens.
-  // Replacing token by token would let a value inserted early, a caller's
-  // search text among them, be read as a template for a later token and
-  // carry unescaped quotes into the query.
-  let missing
-  const text = template.replace(/@@([A-Z_]+)@@/g, (whole, token) => {
-    if (!(token in values)) {
-      missing = token
-      return whole
-    }
-    return String(values[token])
-  })
-  if (missing)
-    throw new Error(`query ${name} is missing substitution ${missing}`)
-  return text
-}
+// The application's own queries. The loader and its substitution rule are
+// shared with the pipeline; only the directory differs.
+export const namedQuery = queryLoader(
+  new URL("../queries/", import.meta.url).pathname
+)
 
 // Reads a response body up to a ceiling, reporting whether it stopped
 // early. Nothing here assembles an answer larger than the ceiling.

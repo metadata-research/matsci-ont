@@ -1,0 +1,7 @@
+# One catalogue resource per source, counted by key. Grouping rather than
+# counting the total catches both a source described twice and a source
+# described under a key the manifest does not have.
+SELECT ?key (COUNT(?s) AS ?n) WHERE {
+  GRAPH <@@CATALOG@@> { ?s <@@ONT@@sourceKey> ?key }
+}
+GROUP BY ?key

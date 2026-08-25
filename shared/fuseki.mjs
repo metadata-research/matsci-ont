@@ -104,6 +104,30 @@ export async function query(
   return { ok: response.ok, status: response.status, text }
 }
 
+// The rows of a SELECT answer.
+//
+// Every caller used to unwrap this by hand and treat a failed request as an
+// empty result, so a query that could not run read exactly like a query
+// that matched nothing. Refusing to answer instead means a broken query
+// fails its check rather than passing it.
+export function rows(answer) {
+  if (!answer.ok) {
+    throw new Error(
+      `the query answered HTTP ${answer.status}: ${answer.text.slice(0, 200)}`
+    )
+  }
+  return JSON.parse(answer.text).results.bindings
+}
+
+export function firstRow(answer) {
+  return rows(answer)[0]
+}
+
+// A SELECT of the form (COUNT(...) AS ?n), which aggregates always answer.
+export function countOf(answer) {
+  return Number(firstRow(answer).n.value)
+}
+
 export async function stopFuseki(server) {
   if (!server?.child || server.child.exitCode !== null) return
   server.child.kill("SIGTERM")

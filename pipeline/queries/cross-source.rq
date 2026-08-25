@@ -1,0 +1,8 @@
+# The sources that define one term. This is the point of holding several
+# vocabularies at once, so a term reaching only one source means the join
+# across sources has stopped working.
+SELECT ?key WHERE {
+  GRAPH <@@DEFS@@> { ?s <@@ONT@@label> ?label ; <@@ONT@@sourceKey> ?key }
+  FILTER(LCASE(STR(?label)) = @@TERM@@)
+}
+GROUP BY ?key

@@ -1,0 +1,9 @@
+# Concepts that are the skos:broader parent of another concept, where both
+# are in the definitions index for one source. A concept renders as a
+# collapsible section exactly when it has children in that index, so this
+# count is the number of nested sections the source page must show.
+SELECT (COUNT(DISTINCT ?p) AS ?n) WHERE {
+  GRAPH <@@GRAPH@@> { ?c <http://www.w3.org/2004/02/skos/core#broader> ?p }
+  GRAPH <@@DEFS@@> { ?p <@@ONT@@sourceKey> "@@KEY@@" }
+  GRAPH <@@DEFS@@> { ?c <@@ONT@@sourceKey> "@@KEY@@" }
+}

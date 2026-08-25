@@ -1,0 +1,102 @@
+// The machine-facing surface: the grounding route, the MCP endpoint, and
+// the interface the application is bound to.
+
+export async function checkApi(context) {
+  await checkGrounding(context)
+  await checkMcp(context)
+  checkBinding(context)
+}
+
+// Definition text a caller can put in front of a reader, with what it needs
+// to credit the source.
+async function checkGrounding({ record, page, fixtures, manifest }) {
+  const { term, limit, expectFirst, mirrorTerm } = fixtures.grounding
+  const ground = async (search) =>
+    JSON.parse((await page(`/grounding?${search}`)).text)
+
+  const answer = await ground(`q=${encodeURIComponent(term)}&limit=${limit}`)
+  const sources = new Set(answer.results.map((row) => row.sourceKey))
+  record(
+    "grounding answers from more than one source, with licences",
+    sources.size > 1 &&
+      answer.results.every(
+        (row) => row.license && row.definition && row.sourceIri
+      ),
+    `${answer.results.length} results from ${[...sources].join(", ")}`
+  )
+  record(
+    "an exact label match is ranked first",
+    answer.results[0]?.term.toLowerCase() === expectFirst,
+    answer.results[0]?.term
+  )
+  const smaller = await ground(`q=${encodeURIComponent(term)}&limit=2`)
+  record(
+    "the limit is honored and truncation is reported",
+    answer.results.length === limit &&
+      answer.truncated === true &&
+      smaller.results.length === 2,
+    `${answer.results.length} results, truncated ${answer.truncated}`
+  )
+
+  // Two runs return the same order, so a caller quoting a result can rely
+  // on it.
+  const repeat = await ground(`q=${encodeURIComponent(term)}&limit=${limit}`)
+  record(
+    "grounding returns the same order twice",
+    JSON.stringify(repeat.results) === JSON.stringify(answer.results)
+  )
+
+  // A source not cleared for publication never grounds anything, and asking
+  // for mirrors cannot lift that.
+  const asked = await ground(
+    `q=${encodeURIComponent(mirrorTerm)}&includeMirror=1`
+  )
+  const uncleared = manifest
+    .filter((entry) => !entry.republishable)
+    .map((entry) => entry.key)
+  record(
+    "no source that is not cleared grounds anything, even when asked for",
+    asked.results.every((row) => !uncleared.includes(row.sourceKey)) &&
+      typeof asked.note === "string",
+    asked.note ?? "no note explaining the empty addition"
+  )
+}
+
+// That the endpoint answers at all. The tool surface itself is exercised by
+// app/test-mcp.mjs with the client from the same SDK.
+const TOOLS = "find_entities,get_entity,get_source,list_sources,sparql_query"
+
+async function checkMcp({ record, appBase }) {
+  const response = await fetch(`${appBase}/mcp`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json, text/event-stream"
+    },
+    body: JSON.stringify({
+      jsonrpc: "2.0",
+      id: 1,
+      method: "tools/list",
+      params: {}
+    })
+  })
+  const listed = response.ok ? JSON.parse(await response.text()) : undefined
+  const names = (listed?.result?.tools ?? []).map((tool) => tool.name).sort()
+  record(
+    "the MCP endpoint lists its five tools",
+    names.join(",") === TOOLS,
+    names.join(",") || `HTTP ${response.status}`
+  )
+}
+
+// The bound address, not a probe: connecting to 0.0.0.0 from this machine
+// reaches a loopback listener anyway, so a probe proves nothing about the
+// binding.
+function checkBinding({ record, app }) {
+  const bound = app.address()
+  record(
+    "the application is bound to the loopback interface",
+    bound?.address === "127.0.0.1",
+    `${bound?.address}:${bound?.port}`
+  )
+}

@@ -1,0 +1,14 @@
+# A subclass placement the reasoner derived that the source does not
+# assert. This is what the inferred toggle has to show and the asserted
+# view has to withhold, so without one the toggle cannot be tested.
+SELECT ?c ?p WHERE {
+  GRAPH <@@INFERRED@@> {
+    ?c <http://www.w3.org/2000/01/rdf-schema#subClassOf> ?p
+  }
+  FILTER NOT EXISTS {
+    GRAPH <@@SOURCE@@> {
+      ?c <http://www.w3.org/2000/01/rdf-schema#subClassOf> ?p
+    }
+  }
+}
+LIMIT 1

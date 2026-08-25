@@ -1,0 +1,6 @@
+# What the reasoner entailed before the already-asserted pairs were
+# subtracted, per source. The catalogue publishes this so a reader can see
+# how much of a hierarchy is asserted rather than derived.
+SELECT ?key ?n WHERE {
+  GRAPH <@@CATALOG@@> { ?s <@@ONT@@sourceKey> ?key ; <@@ONT@@entailedPairs> ?n }
+}

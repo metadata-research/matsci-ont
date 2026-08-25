@@ -1,0 +1,6 @@
+# A federated query the endpoint must refuse. If it were accepted, anyone
+# who can send a query could make the store fetch a URL of their choosing.
+SELECT * WHERE {
+  SERVICE <http://localhost:1/sparql> { ?s ?p ?o }
+}
+LIMIT 1

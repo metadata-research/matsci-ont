@@ -1,0 +1,9 @@
+# The named direct subclasses of a class within one source graph. Blank
+# node subjects are excluded because a restriction cannot be linked to as a
+# child on a page.
+SELECT DISTINCT ?child WHERE {
+  GRAPH <@@GRAPH@@> {
+    ?child <http://www.w3.org/2000/01/rdf-schema#subClassOf> <@@PARENT@@>
+    FILTER(isIRI(?child))
+  }
+}

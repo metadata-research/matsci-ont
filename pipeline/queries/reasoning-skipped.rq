@@ -1,0 +1,8 @@
+# The catalogue's record of why a source was not reasoned. A source the
+# pipeline skipped in silence would look the same as one that entailed
+# nothing.
+SELECT ?why WHERE {
+  GRAPH <@@CATALOG@@> {
+    ?s <@@ONT@@sourceKey> "@@KEY@@" ; <@@ONT@@reasoningSkipped> ?why
+  }
+}

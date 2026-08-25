@@ -1,0 +1,9 @@
+# The EMMO elucidation of one entity, which is the definition the
+# precedence in derive.mjs chooses over rdfs:comment for CHAMEO. The page
+# must show this text and not the comment.
+SELECT ?d WHERE {
+  GRAPH <@@GRAPH@@> {
+    <@@IRI@@> <https://w3id.org/emmo#EMMO_967080e5_2f42_4eb2_a3a9_c58143e835f9> ?d
+  }
+}
+LIMIT 1

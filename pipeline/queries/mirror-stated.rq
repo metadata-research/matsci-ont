@@ -1,0 +1,12 @@
+# The triple counts the upstream publisher states for its own graphs, read
+# from the mirrored description. Comparing these against what actually
+# loaded is how a mirror that quietly lost content is caught rather than
+# served.
+#
+# The graphs to look in are listed rather than matched by IRI prefix, so
+# the query carries no assumption about the publisher's host or its path
+# layout: the manifest already says which graphs are mirrors.
+SELECT ?graph ?n WHERE {
+  VALUES ?g { @@MIRRORGRAPHS@@ }
+  GRAPH ?g { ?graph <http://rdfs.org/ns/void#triples> ?n }
+}

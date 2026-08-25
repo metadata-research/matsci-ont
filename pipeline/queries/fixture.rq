@@ -1,0 +1,12 @@
+# Resolves a fixture entity: whether the store holds anything about it at
+# all, and whichever labels it carries. The label is optional so that an
+# entity present without one is reported as unlabelled rather than absent.
+SELECT ?label WHERE {
+  GRAPH ?g {
+    <@@IRI@@> ?p ?o
+    OPTIONAL {
+      <@@IRI@@> <http://www.w3.org/2004/02/skos/core#prefLabel>|<http://www.w3.org/2000/01/rdf-schema#label> ?label
+    }
+  }
+}
+LIMIT 50

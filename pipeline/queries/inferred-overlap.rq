@@ -1,0 +1,7 @@
+# Pairs present in both a source graph and its inferred graph. Any overlap
+# means the subtraction failed, or that the reasoning step lost
+# --create-new-ontology and re-stated the whole input as inference.
+SELECT (COUNT(*) AS ?n) WHERE {
+  GRAPH <@@INFERRED@@> { ?s ?p ?o }
+  GRAPH <@@SOURCE@@> { ?s ?p ?o }
+}
