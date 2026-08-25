@@ -6,26 +6,26 @@ export function escape(value) {
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+    .replace(/"/g, "&quot;")
 }
 
-export const attr = escape;
+export const attr = escape
 
 export function entityUrl(iri, inferred) {
-  return `/entity?iri=${encodeURIComponent(iri)}${inferred ? "&inferred=1" : ""}`;
+  return `/entity?iri=${encodeURIComponent(iri)}${inferred ? "&inferred=1" : ""}`
 }
 
 // The readable tail of an IRI. A trailing slash is dropped first, so a
 // namespace IRI such as https://w3id.org/pmd/co/ shortens to "co" instead
 // of falling back to the whole IRI.
 export function localName(iri) {
-  const trimmed = iri.endsWith("/") ? iri.slice(0, -1) : iri;
-  const cut = Math.max(trimmed.lastIndexOf("#"), trimmed.lastIndexOf("/"));
-  return cut >= 0 && cut < trimmed.length - 1 ? trimmed.slice(cut + 1) : trimmed;
+  const trimmed = iri.endsWith("/") ? iri.slice(0, -1) : iri
+  const cut = Math.max(trimmed.lastIndexOf("#"), trimmed.lastIndexOf("/"))
+  return cut >= 0 && cut < trimmed.length - 1 ? trimmed.slice(cut + 1) : trimmed
 }
 
 export function termLink(iri, label, inferred) {
-  return `<a href="${attr(entityUrl(iri, inferred))}" title="${attr(iri)}">${escape(label ?? localName(iri))}</a>`;
+  return `<a href="${attr(entityUrl(iri, inferred))}" title="${attr(iri)}">${escape(label ?? localName(iri))}</a>`
 }
 
 export function layout(title, body) {
@@ -57,12 +57,12 @@ license of what they show.</p>
 </footer>
 </body>
 </html>
-`;
+`
 }
 
 export function errorPage(status, message) {
   return layout(
     `${status}`,
-    `<h1>${status}</h1><p>${escape(message)}</p><p><a href="/">Back to the catalogue</a></p>`,
-  );
+    `<h1>${status}</h1><p>${escape(message)}</p><p><a href="/">Back to the catalogue</a></p>`
+  )
 }

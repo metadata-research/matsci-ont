@@ -1,0 +1,25 @@
+# The checks that need neither Java nor a built store. Everything else
+# (reasoning, the store comparison, the served endpoints) needs the Jena
+# toolchain and a multi-minute build, so it stays a local gate before a
+# commit rather than something a push waits on.
+name: check
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm format:check
+      - run: pnpm lint
+      - run: pnpm check:manifest
+      - run: pnpm test:pure

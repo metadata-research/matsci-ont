@@ -2,39 +2,62 @@
 // else. Substitution values reach queries only through the typed helpers in
 // lib/sparql.mjs.
 
-import { graphIris, baseUrl, inferredGraphFor } from "../pipeline/lib/derive.mjs";
-import { select, checkIri, checkKey, literal, regexLiteral, safeHref } from "./lib/sparql.mjs";
-import { escape, attr, layout, errorPage, termLink, entityUrl, localName } from "./lib/html.mjs";
-import { buildForest } from "./lib/tree.mjs";
-import { buildAncestry } from "./lib/hierarchy.mjs";
-import { verbalize } from "./lib/axioms.mjs";
+import {
+  graphIris,
+  vocabularyIri,
+  inferredGraphFor,
+  inferredGraphPrefix
+} from "../shared/vocabulary.mjs"
+import {
+  select,
+  checkIri,
+  checkKey,
+  literal,
+  regexLiteral,
+  safeHref
+} from "./lib/sparql.mjs"
+import {
+  escape,
+  attr,
+  layout,
+  errorPage,
+  termLink,
+  entityUrl,
+  localName
+} from "./lib/html.mjs"
+import { buildForest } from "./lib/tree.mjs"
+import { buildAncestry } from "./lib/hierarchy.mjs"
+import { verbalize } from "./lib/axioms.mjs"
 
-const graphs = graphIris();
-const ONT = `${baseUrl()}vocab#`;
+const graphs = graphIris()
+const ONT = vocabularyIri()
 
 const common = {
   ONT,
   CATALOG: graphs.catalog,
   DEFS: graphs.definitions,
-  INFPREFIX: `${baseUrl()}graphs/inferred/`,
-};
+  INFPREFIX: inferredGraphPrefix()
+}
 
 async function catalogueRows() {
-  return select("catalogue", common);
+  return select("catalogue", common)
 }
 
 async function sourceByKey(key) {
-  const rows = await catalogueRows();
-  return rows.find((row) => row.key.value === key);
+  const rows = await catalogueRows()
+  return rows.find((row) => row.key.value === key)
 }
 
 async function sourceByGraph(graphIri) {
-  const rows = await catalogueRows();
-  return rows.find((row) => row.graphIri.value === graphIri);
+  const rows = await catalogueRows()
+  return rows.find((row) => row.graphIri.value === graphIri)
 }
 
 async function hasInferred(key) {
-  return select("inferred-present", { ...common, INFGRAPH: checkIri(inferredGraphFor(key)) });
+  return select("inferred-present", {
+    ...common,
+    INFGRAPH: checkIri(inferredGraphFor(key))
+  })
 }
 
 // A mirror is a copy of a living dataset published elsewhere. A page that
@@ -42,32 +65,45 @@ async function hasInferred(key) {
 // links to the authoritative copy, so a reader can tell which service is
 // the source of record.
 function mirrorBanner(source) {
-  if (!source?.mirrorOf) return "";
-  const when = source.mirroredFrom?.value;
-  const cleared = source.republishable?.value === "true";
+  if (!source?.mirrorOf) return ""
+  const when = source.mirroredFrom?.value
+  const cleared = source.republishable?.value === "true"
   return `<p class="banner">Mirror of
 <a href="${attr(source.mirrorOf.value)}" rel="noopener">MatSci-SAM</a>${
-    when ? `, as its publisher projected it on ${escape(when.slice(0, 10))}` : ""
+    when
+      ? `, as its publisher projected it on ${escape(when.slice(0, 10))}`
+      : ""
   }. MatSci-SAM is the source of record.${
-    cleared ? "" : " The licence is undeclared, so this copy is not cleared for public serving."
-  }</p>`;
+    cleared
+      ? ""
+      : " The licence is undeclared, so this copy is not cleared for public serving."
+  }</p>`
 }
 
 function hierarchySubstitutions(source, inferred) {
-  const graph = checkIri(source.graphIri.value);
-  const inferredGraph = inferred ? checkIri(inferredGraphFor(source.key.value)) : graph;
-  return { ...common, GRAPH: graph, INFGRAPH: inferredGraph, KEY: literal(source.key.value) };
+  const graph = checkIri(source.graphIri.value)
+  const inferredGraph = inferred
+    ? checkIri(inferredGraphFor(source.key.value))
+    : graph
+  return {
+    ...common,
+    GRAPH: graph,
+    INFGRAPH: inferredGraph,
+    KEY: literal(source.key.value)
+  }
 }
 
 export async function cataloguePage() {
-  const rows = await catalogueRows();
+  const rows = await catalogueRows()
   const cards = rows
     .map(
       (row) => `<section class="card">
 <h2><a href="/source/${attr(row.key.value)}">${escape(row.title.value)}</a></h2>
 <table>
 <tr><th>${row.mirrorOf ? "Kind" : "Version"}</th><td>${
-        row.mirrorOf ? "Mirror of a published dataset" : escape(row.version?.value ?? "")
+        row.mirrorOf
+          ? "Mirror of a published dataset"
+          : escape(row.version?.value ?? "")
       }</td></tr>
 <tr><th>License</th><td>${escape(row.license.value)}${
         row.republishable?.value === "false"
@@ -80,53 +116,63 @@ ${row.ontologyIri ? `<tr><th>Ontology IRI</th><td><code>${escape(row.ontologyIri
 </table>
 <p><a href="/source/${attr(row.key.value)}">Browse</a> ·
 <a href="/graph/${attr(row.key.value)}">Graph view</a></p>
-</section>`,
+</section>`
     )
-    .join("\n");
+    .join("\n")
   return layout(
     "Catalogue",
     `<h1>Sources</h1>
 <p>Versioned snapshots of published materials-science ontologies. Each
 entity keeps the identifier its publisher minted.</p>
-${cards}`,
-  );
+${cards}`
+  )
 }
 
 export async function sourcePage(key, inferred) {
-  checkKey(key);
-  const source = await sourceByKey(key);
-  if (!source) return { status: 404, html: errorPage(404, `No source is named ${key}.`) };
+  checkKey(key)
+  const source = await sourceByKey(key)
+  if (!source)
+    return { status: 404, html: errorPage(404, `No source is named ${key}.`) }
 
-  const showInferred = inferred && (await hasInferred(key));
-  const rows = await select("tree", hierarchySubstitutions(source, showInferred));
-  const { forest, count } = buildForest(rows);
+  const showInferred = inferred && (await hasInferred(key))
+  const rows = await select(
+    "tree",
+    hierarchySubstitutions(source, showInferred)
+  )
+  const { forest, count } = buildForest(rows)
 
   // Each node is one list item. A node with children carries a collapsible
   // details around its own label and the child list, so the tree is
   // nested correctly and folds with no JavaScript.
   const renderNode = (node) => {
     const marks = [
-      node.repeat ? '<span class="mark" title="Also shown under another parent">also above</span>' : "",
-      node.inferredEdge ? '<span class="mark inferred" title="Inferred placement">inferred</span>' : "",
+      node.repeat
+        ? '<span class="mark" title="Also shown under another parent">also above</span>'
+        : "",
+      node.inferredEdge
+        ? '<span class="mark inferred" title="Inferred placement">inferred</span>'
+        : "",
       node.externalParents?.length
         ? `<span class="mark" title="Parent not in this store: ${attr(node.externalParents.join(", "))}">external parent</span>`
-        : "",
+        : ""
     ]
       .filter(Boolean)
-      .join(" ");
-    const label = `${termLink(node.iri, node.label, showInferred)} ${marks}`;
-    if (node.children.length === 0) return `<li>${label}</li>`;
+      .join(" ")
+    const label = `${termLink(node.iri, node.label, showInferred)} ${marks}`
+    if (node.children.length === 0) return `<li>${label}</li>`
     return `<li><details open><summary>${label}</summary>
 <ul>${node.children.map(renderNode).join("\n")}</ul>
-</details></li>`;
-  };
-  const treeHtml = `<ul>${forest.map(renderNode).join("\n")}</ul>`;
+</details></li>`
+  }
+  const treeHtml = `<ul>${forest.map(renderNode).join("\n")}</ul>`
 
   const toggle = (await hasInferred(key))
     ? `<p><a href="/source/${attr(key)}${showInferred ? "" : "?inferred=1"}">${
-        showInferred ? "Show the asserted hierarchy" : "Show the inferred hierarchy"
+        showInferred
+          ? "Show the asserted hierarchy"
+          : "Show the inferred hierarchy"
       }</a></p>`
-    : "";
+    : ""
 
   return {
     status: 200,
@@ -148,9 +194,9 @@ ${toggle}
 <p class="mark">${escape(count.toLocaleString("en-US"))} classes.</p>
 <div class="tree">
 ${treeHtml}
-</div>`,
-    ),
-  };
+</div>`
+    )
+  }
 }
 
 const HIDDEN_ANNOTATIONS = new Set([
@@ -159,8 +205,8 @@ const HIDDEN_ANNOTATIONS = new Set([
   "http://www.w3.org/2004/02/skos/core#broader",
   "http://www.w3.org/2004/02/skos/core#narrower",
   "http://www.w3.org/2002/07/owl#equivalentClass",
-  "http://www.w3.org/2002/07/owl#disjointWith",
-]);
+  "http://www.w3.org/2002/07/owl#disjointWith"
+])
 
 const MAPPING_PREDICATES = new Set([
   "http://www.w3.org/2004/02/skos/core#exactMatch",
@@ -168,74 +214,94 @@ const MAPPING_PREDICATES = new Set([
   "http://www.w3.org/2004/02/skos/core#broadMatch",
   "http://www.w3.org/2004/02/skos/core#narrowMatch",
   "http://www.w3.org/2004/02/skos/core#relatedMatch",
-  "http://www.w3.org/2000/01/rdf-schema#seeAlso",
-]);
+  "http://www.w3.org/2000/01/rdf-schema#seeAlso"
+])
 
 export async function entityPage(iri, inferred) {
   try {
-    checkIri(iri);
+    checkIri(iri)
   } catch {
-    return { status: 404, html: errorPage(404, "That is not an entity IRI this store can hold.") };
+    return {
+      status: 404,
+      html: errorPage(404, "That is not an entity IRI this store can hold.")
+    }
   }
 
-  const rows = await select("entity", { ...common, IRI: iri });
+  const rows = await select("entity", { ...common, IRI: iri })
   if (rows.length === 0) {
-    return { status: 404, html: errorPage(404, `Nothing in the store mentions ${iri}.`) };
+    return {
+      status: 404,
+      html: errorPage(404, `Nothing in the store mentions ${iri}.`)
+    }
   }
 
-  const definitionRows = rows.filter((row) => row.g.value === graphs.definitions);
+  const definitionRows = rows.filter(
+    (row) => row.g.value === graphs.definitions
+  )
   const field = (name) =>
-    definitionRows.find((row) => row.p.value === `${ONT}${name}`)?.o.value;
-  const key = field("sourceKey");
-  const source = key ? await sourceByKey(key) : await sourceByGraph(rows[0].g.value);
+    definitionRows.find((row) => row.p.value === `${ONT}${name}`)?.o.value
+  const key = field("sourceKey")
+  const source = key
+    ? await sourceByKey(key)
+    : await sourceByGraph(rows[0].g.value)
 
-  const showInferred = Boolean(inferred && key && (await hasInferred(key)));
-  const substitutions = source ? hierarchySubstitutions(source, showInferred) : null;
+  const showInferred = Boolean(inferred && key && (await hasInferred(key)))
+  const substitutions = source
+    ? hierarchySubstitutions(source, showInferred)
+    : null
   const ancestryRows = substitutions
     ? await select("ancestry", { ...substitutions, IRI: iri })
-    : [];
+    : []
   const childRows = substitutions
     ? await select("children", { ...substitutions, IRI: iri })
-    : [];
-  const incomingRows = await select("incoming", { ...common, IRI: iri });
+    : []
+  const incomingRows = await select("incoming", { ...common, IRI: iri })
 
-  const ancestry = buildAncestry(ancestryRows, iri);
-  const { axioms, disjoint, fallbacks } = verbalize(rows, iri);
+  const ancestry = buildAncestry(ancestryRows, iri)
+  const { axioms, disjoint, fallbacks } = verbalize(rows, iri)
 
-  const inferredMark = '<span class="mark inferred" title="Placed here by the reasoner">inferred</span>';
+  const inferredMark =
+    '<span class="mark inferred" title="Placed here by the reasoner">inferred</span>'
   const chainHtml = ancestry.chain
     .map((node, index) => {
       const text =
         node.iri === iri
           ? `<strong>${escape(node.label ?? localName(node.iri))}</strong>`
-          : termLink(node.iri, node.label, showInferred) + (node.external ? ' <span class="mark">external</span>' : "");
+          : termLink(node.iri, node.label, showInferred) +
+            (node.external ? ' <span class="mark">external</span>' : "")
       // The marker sits on the node whose step upward the reasoner
       // supplied, so a reader can see which link in the chain is inferred.
-      const mark = node.inferredEdge ? ` ${inferredMark}` : "";
-      return `<div style="padding-left:${index * 1.25}rem">↳ ${text}${mark}</div>`;
+      const mark = node.inferredEdge ? ` ${inferredMark}` : ""
+      return `<div style="padding-left:${index * 1.25}rem">↳ ${text}${mark}</div>`
     })
-    .join("\n");
+    .join("\n")
   const secondaryHtml = ancestry.secondary.length
     ? `<p>Also below: ${ancestry.secondary
         .map(
           (node) =>
-            termLink(node.iri, node.label, showInferred) + (node.inferredEdge ? ` ${inferredMark}` : ""),
+            termLink(node.iri, node.label, showInferred) +
+            (node.inferredEdge ? ` ${inferredMark}` : "")
         )
         .join(", ")}</p>`
-    : "";
+    : ""
   const childHtml = childRows
     .slice(0, 25)
     .map(
       (row) =>
         `<li>${termLink(row.child.value, row.label?.value, showInferred)}${
-          row.inferred?.value === "true" ? ' <span class="mark inferred">inferred</span>' : ""
-        }</li>`,
+          row.inferred?.value === "true"
+            ? ' <span class="mark inferred">inferred</span>'
+            : ""
+        }</li>`
     )
-    .join("\n");
-  const childOverflow = childRows.length > 25 ? "<p>Only the first 25 children are shown.</p>" : "";
+    .join("\n")
+  const childOverflow =
+    childRows.length > 25 ? "<p>Only the first 25 children are shown.</p>" : ""
 
-  const definition = field("definition");
-  const definitionProperty = definitionRows.find((row) => row.p.value === `${ONT}definitionProperty`)?.o.value;
+  const definition = field("definition")
+  const definitionProperty = definitionRows.find(
+    (row) => row.p.value === `${ONT}definitionProperty`
+  )?.o.value
   const annotationRows = rows.filter(
     (row) =>
       row.s.type === "uri" &&
@@ -243,54 +309,70 @@ export async function entityPage(iri, inferred) {
       row.o.type === "literal" &&
       row.g.value !== graphs.definitions &&
       row.g.value !== graphs.catalog &&
-      !HIDDEN_ANNOTATIONS.has(row.p.value),
-  );
+      !HIDDEN_ANNOTATIONS.has(row.p.value)
+  )
   const annotationsHtml = annotationRows
     .map(
       (row) =>
         `<tr><td><code title="${attr(row.p.value)}">${escape(localName(row.p.value))}</code></td><td>${escape(row.o.value)}${
-          row.o["xml:lang"] ? ` <span class="mark">@${escape(row.o["xml:lang"])}</span>` : ""
-        }</td></tr>`,
+          row.o["xml:lang"]
+            ? ` <span class="mark">@${escape(row.o["xml:lang"])}</span>`
+            : ""
+        }</td></tr>`
     )
-    .join("\n");
+    .join("\n")
 
   const tokensHtml = (tokens) =>
     tokens
-      .map((token) => (token.kind === "term" ? termLink(token.iri, undefined, showInferred) : escape(token.text)))
-      .join(" ");
+      .map((token) =>
+        token.kind === "term"
+          ? termLink(token.iri, undefined, showInferred)
+          : escape(token.text)
+      )
+      .join(" ")
   const axiomsHtml = [
-    ...axioms.map((axiom) => `<li>${escape(axiom.relation)} ${tokensHtml(axiom.tokens)}</li>`),
-    ...disjoint.map((other) => `<li>disjoint with ${termLink(other, undefined, showInferred)}</li>`),
-  ].join("\n");
+    ...axioms.map(
+      (axiom) =>
+        `<li>${escape(axiom.relation)} ${tokensHtml(axiom.tokens)}</li>`
+    ),
+    ...disjoint.map(
+      (other) =>
+        `<li>disjoint with ${termLink(other, undefined, showInferred)}</li>`
+    )
+  ].join("\n")
 
   const mappingRows = rows.filter(
-    (row) => row.s.value === iri && row.o.type === "uri" && MAPPING_PREDICATES.has(row.p.value),
-  );
+    (row) =>
+      row.s.value === iri &&
+      row.o.type === "uri" &&
+      MAPPING_PREDICATES.has(row.p.value)
+  )
   // A mapping target is an IRI its author wrote and cannot be trusted as an
   // href. An http or https target links out, anything else shows as text.
   const mappingsHtml = mappingRows
     .map((row) => {
-      const href = safeHref(row.o.value);
+      const href = safeHref(row.o.value)
       const target = href
         ? `<a href="${attr(href)}" rel="noopener nofollow">${escape(row.o.value)}</a>`
-        : `<code>${escape(row.o.value)}</code>`;
-      return `<li><code>${escape(localName(row.p.value))}</code> ${target}</li>`;
+        : `<code>${escape(row.o.value)}</code>`
+      return `<li><code>${escape(localName(row.p.value))}</code> ${target}</li>`
     })
-    .join("\n");
+    .join("\n")
 
   // Incoming references grouped by predicate.
-  const incomingByPredicate = new Map();
+  const incomingByPredicate = new Map()
   for (const row of incomingRows.slice(0, 50)) {
-    if (!incomingByPredicate.has(row.p.value)) incomingByPredicate.set(row.p.value, []);
-    incomingByPredicate.get(row.p.value).push(row);
+    if (!incomingByPredicate.has(row.p.value))
+      incomingByPredicate.set(row.p.value, [])
+    incomingByPredicate.get(row.p.value).push(row)
   }
   const incomingHtml = [...incomingByPredicate.entries()]
     .map(
       ([predicate, refs]) =>
         `<li><code title="${attr(predicate)}">${escape(localName(predicate))}</code>
-<ul>${refs.map((row) => `<li>${termLink(row.s.value, row.label?.value, showInferred)}</li>`).join("\n")}</ul></li>`,
+<ul>${refs.map((row) => `<li>${termLink(row.s.value, row.label?.value, showInferred)}</li>`).join("\n")}</ul></li>`
     )
-    .join("\n");
+    .join("\n")
 
   const rawHtml = rows
     .map(
@@ -298,17 +380,19 @@ export async function entityPage(iri, inferred) {
         `<tr><td>${escape(row.s.type === "bnode" ? `_:${row.s.value}` : localName(row.s.value))}</td>` +
         `<td title="${attr(row.p.value)}">${escape(localName(row.p.value))}</td>` +
         `<td>${escape(row.o.type === "bnode" ? `_:${row.o.value}` : row.o.value)}</td>` +
-        `<td class="graph">${escape(localName(row.g.value))}</td></tr>`,
+        `<td class="graph">${escape(localName(row.g.value))}</td></tr>`
     )
-    .join("\n");
+    .join("\n")
 
-  const label = field("label") ?? localName(iri);
+  const label = field("label") ?? localName(iri)
   const toggleHtml =
     key && (await hasInferred(key))
       ? `<p><a href="${attr(entityUrl(iri, !showInferred))}">${
-          showInferred ? "Show only the asserted hierarchy" : "Show the inferred hierarchy"
+          showInferred
+            ? "Show only the asserted hierarchy"
+            : "Show the inferred hierarchy"
         }</a></p>`
-      : "";
+      : ""
 
   return {
     status: 200,
@@ -317,10 +401,10 @@ export async function entityPage(iri, inferred) {
       `<h1>${escape(label)}</h1>
 ${mirrorBanner(source)}
 ${
-        source?.mirrorOf && safeHref(iri) && field("label")
-          ? `<p><a href="${attr(safeHref(iri))}" rel="noopener">Open this on MatSci-SAM</a></p>`
-          : ""
-      }
+  source?.mirrorOf && safeHref(iri) && field("label")
+    ? `<p><a href="${attr(safeHref(iri))}" rel="noopener">Open this on MatSci-SAM</a></p>`
+    : ""
+}
 <p class="attribution">${
         source
           ? `From <a href="/source/${attr(source.key.value)}">${escape(source.title.value)}</a>${
@@ -337,10 +421,10 @@ ${secondaryHtml}
 ${childHtml ? `<h3>Children</h3><ul>${childHtml}</ul>${childOverflow}` : ""}
 <h2>Definition</h2>
 ${
-        definition
-          ? `<p>${escape(definition)}</p><p class="mark">from <code>${escape(localName(definitionProperty ?? ""))}</code></p>`
-          : "<p>The source states no definition for this entity.</p>"
-      }
+  definition
+    ? `<p>${escape(definition)}</p><p class="mark">from <code>${escape(localName(definitionProperty ?? ""))}</code></p>`
+    : "<p>The source states no definition for this entity.</p>"
+}
 ${annotationsHtml ? `<h3>Annotations</h3><table>${annotationsHtml}</table>` : ""}
 ${axiomsHtml ? `<h2>Axioms</h2><ul class="axioms">${axiomsHtml}</ul>` : ""}
 ${fallbacks > 0 ? `<p>${fallbacks} axiom(s) use expressions this page does not verbalize. They appear in the raw triples below.</p>` : ""}
@@ -350,32 +434,38 @@ ${incomingHtml ? `<h2>Referenced by</h2><ul>${incomingHtml}</ul>${incomingRows.l
 <summary>Raw triples (${rows.length})</summary>
 <table class="raw">${rawHtml}</table>
 <p class="mark">Blank node structures are fetched to depth five.</p>
-</details>`,
-    ),
-  };
+</details>`
+    )
+  }
 }
 
 export async function searchPage(q) {
-  const query = (q ?? "").trim().slice(0, 200);
-  if (!query) return layout("Search", "<h1>Search</h1><p>Type a term above.</p>");
-  const rows = await select("search", { ...common, REGEX: regexLiteral(query) });
+  const query = (q ?? "").trim().slice(0, 200)
+  if (!query)
+    return layout("Search", "<h1>Search</h1><p>Type a term above.</p>")
+  const rows = await select("search", { ...common, REGEX: regexLiteral(query) })
 
-  const byKey = new Map();
+  const byKey = new Map()
   for (const row of rows) {
-    if (!byKey.has(row.key.value)) byKey.set(row.key.value, []);
-    byKey.get(row.key.value).push(row);
+    if (!byKey.has(row.key.value)) byKey.set(row.key.value, [])
+    byKey.get(row.key.value).push(row)
   }
-  const catalogue = new Map((await catalogueRows()).map((row) => [row.key.value, row]));
+  const catalogue = new Map(
+    (await catalogueRows()).map((row) => [row.key.value, row])
+  )
   const sections = [...byKey.entries()]
     .map(
-      ([key, hits]) => `<h2>${escape(catalogue.get(key)?.title.value ?? key)}</h2>
+      ([
+        key,
+        hits
+      ]) => `<h2>${escape(catalogue.get(key)?.title.value ?? key)}</h2>
 ${
-        catalogue.get(key)?.mirrorOf
-          ? `<p class="mark">Mirrored from MatSci-SAM, licence ${escape(
-              catalogue.get(key)?.license.value ?? "",
-            )}.</p>`
-          : `<p class="mark">${escape(catalogue.get(key)?.license.value ?? "")}</p>`
-      }
+  catalogue.get(key)?.mirrorOf
+    ? `<p class="mark">Mirrored from MatSci-SAM, licence ${escape(
+        catalogue.get(key)?.license.value ?? ""
+      )}.</p>`
+    : `<p class="mark">${escape(catalogue.get(key)?.license.value ?? "")}</p>`
+}
 <ul>${hits
         .map(
           (row) =>
@@ -383,67 +473,85 @@ ${
               row.definition
                 ? `<span class="mark">: ${escape(row.definition.value.slice(0, 200))}</span>`
                 : ""
-            }</li>`,
+            }</li>`
         )
-        .join("\n")}</ul>`,
+        .join("\n")}</ul>`
     )
-    .join("\n");
+    .join("\n")
   // The query caps at 200, so a full page of results may not be all of them.
-  const overflow = rows.length >= 200 ? "<p>Only the first 200 results are shown.</p>" : "";
+  const overflow =
+    rows.length >= 200 ? "<p>Only the first 200 results are shown.</p>" : ""
   return layout(
     `Search: ${query}`,
     `<h1>Search</h1>
 <p>${rows.length} result(s) for <strong>${escape(query)}</strong>, matched on word boundaries.</p>
 ${overflow}
-${sections || "<p>Nothing matched.</p>"}`,
-  );
+${sections || "<p>Nothing matched.</p>"}`
+  )
 }
 
 export async function graphJson(key) {
-  checkKey(key);
-  const source = await sourceByKey(key);
-  if (!source) return { status: 404, body: { error: `no source ${key}` } };
+  checkKey(key)
+  const source = await sourceByKey(key)
+  if (!source) return { status: 404, body: { error: `no source ${key}` } }
 
-  const rows = await select("graph", hierarchySubstitutions(source, false));
-  const nodes = new Map();
-  const edges = [];
+  const rows = await select("graph", hierarchySubstitutions(source, false))
+  const nodes = new Map()
+  const edges = []
   for (const row of rows) {
     if (row.kind.value === "node") {
       nodes.set(row.a.value, {
-        data: { id: row.a.value, label: row.label.value, url: entityUrl(row.a.value) },
-      });
+        data: {
+          id: row.a.value,
+          label: row.label.value,
+          url: entityUrl(row.a.value)
+        }
+      })
     }
   }
-  let propertyEdges = 0;
+  let propertyEdges = 0
   for (const row of rows) {
     if (row.kind.value === "edge" && nodes.has(row.a.value)) {
       if (!nodes.has(row.b.value)) {
         nodes.set(row.b.value, {
-          data: { id: row.b.value, label: localName(row.b.value), url: entityUrl(row.b.value) },
-          classes: "external",
-        });
+          data: {
+            id: row.b.value,
+            label: localName(row.b.value),
+            url: entityUrl(row.b.value)
+          },
+          classes: "external"
+        })
       }
       edges.push({
-        data: { id: `s${edges.length}`, source: row.a.value, target: row.b.value, kind: "subClassOf" },
-        classes: "hierarchy",
-      });
+        data: {
+          id: `s${edges.length}`,
+          source: row.a.value,
+          target: row.b.value,
+          kind: "subClassOf"
+        },
+        classes: "hierarchy"
+      })
     }
   }
-  const truncated = nodes.size > 300;
+  const truncated = nodes.size > 300
   if (!truncated) {
     for (const row of rows) {
-      if (row.kind.value === "prop" && nodes.has(row.a.value) && nodes.has(row.b.value)) {
+      if (
+        row.kind.value === "prop" &&
+        nodes.has(row.a.value) &&
+        nodes.has(row.b.value)
+      ) {
         edges.push({
           data: {
             id: `p${edges.length}`,
             source: row.a.value,
             target: row.b.value,
             label: row.label?.value ?? "",
-            kind: "property",
+            kind: "property"
           },
-          classes: "property",
-        });
-        propertyEdges += 1;
+          classes: "property"
+        })
+        propertyEdges += 1
       }
     }
   }
@@ -455,15 +563,16 @@ export async function graphJson(key) {
       note: truncated
         ? "More than 300 nodes: property edges are omitted, the hierarchy is kept."
         : `Object properties render as ${propertyEdges} labelled edge(s). Union domains and ranges are omitted.`,
-      elements: { nodes: [...nodes.values()], edges },
-    },
-  };
+      elements: { nodes: [...nodes.values()], edges }
+    }
+  }
 }
 
 export async function graphPage(key) {
-  checkKey(key);
-  const source = await sourceByKey(key);
-  if (!source) return { status: 404, html: errorPage(404, `No source is named ${key}.`) };
+  checkKey(key)
+  const source = await sourceByKey(key)
+  if (!source)
+    return { status: 404, html: errorPage(404, `No source is named ${key}.`) }
   return {
     status: 200,
     html: layout(
@@ -509,7 +618,7 @@ ${mirrorBanner(source)}
     });
   });
 })();
-</script>`,
-    ),
-  };
+</script>`
+    )
+  }
 }

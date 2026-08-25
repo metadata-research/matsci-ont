@@ -14,13 +14,13 @@ recorded there are closed unless listed as open.
 
 ## Layout
 
-| Directory | Content |
-| --- | --- |
-| `manifest/` | One JSON file per source, the record the store is built from |
-| `pipeline/` | Ingestion and check scripts |
-| `mcp/` | The application: browse pages, the MCP endpoint, and their queries |
-| `deploy/` | Drafts of host material, reviewed copies land in the private ops repository |
-| `docs/` | Project documentation |
+| Directory   | Content                                                                     |
+| ----------- | --------------------------------------------------------------------------- |
+| `manifest/` | One JSON file per source, the record the store is built from                |
+| `pipeline/` | Ingestion and check scripts                                                 |
+| `app/`      | The application: browse pages, the MCP endpoint, and their queries          |
+| `deploy/`   | Drafts of host material, reviewed copies land in the private ops repository |
+| `docs/`     | Project documentation                                                       |
 
 ## The manifest
 
@@ -28,23 +28,23 @@ The store is a pure function of the manifest. The store is disposable, is
 never backed up, and is rebuilt from the manifest at any time. Each source
 is one JSON file in `manifest/` with these fields:
 
-| Field | Meaning |
-| --- | --- |
-| `key` | Short stable identifier, matches the file name |
-| `kind` | `external-snapshot` for a pinned ontology, `matsci-sam-mirror` for a mirrored dataset |
-| `title` | Human-readable source name |
-| `ontologyIri` | Canonical ontology IRI minted by the publisher |
-| `graphIri` | Named graph the source loads into, normally the ontology IRI |
-| `version` | Version label of the pinned release |
-| `downloadUrl` | Immutable URL to a released artifact, never a branch |
-| `sha256` | SHA-256 of the artifact bytes |
-| `format` | `ttl`, `rdfxml`, `ntriples`, or `jsonld` |
-| `license` | SPDX identifier |
-| `republishable` | Whether serving the content publicly is permitted |
-| `modules` | Optional list of pinned module URLs with their own hashes, each naming the `importIri` the main file imports |
-| `reason` | Optional, false to skip OWL reasoning over the source |
-| `importsToEmpty` | Optional list of import IRIs resolved to an empty ontology, for ontologies this manifest does not pin |
-| `notes` | Optional free text |
+| Field            | Meaning                                                                                                      |
+| ---------------- | ------------------------------------------------------------------------------------------------------------ |
+| `key`            | Short stable identifier, matches the file name                                                               |
+| `kind`           | `external-snapshot` for a pinned ontology, `matsci-sam-mirror` for a mirrored dataset                        |
+| `title`          | Human-readable source name                                                                                   |
+| `ontologyIri`    | Canonical ontology IRI minted by the publisher                                                               |
+| `graphIri`       | Named graph the source loads into, normally the ontology IRI                                                 |
+| `version`        | Version label of the pinned release                                                                          |
+| `downloadUrl`    | Immutable URL to a released artifact, never a branch                                                         |
+| `sha256`         | SHA-256 of the artifact bytes                                                                                |
+| `format`         | `ttl`, `rdfxml`, `ntriples`, or `jsonld`                                                                     |
+| `license`        | SPDX identifier                                                                                              |
+| `republishable`  | Whether serving the content publicly is permitted                                                            |
+| `modules`        | Optional list of pinned module URLs with their own hashes, each naming the `importIri` the main file imports |
+| `reason`         | Optional, false to skip OWL reasoning over the source                                                        |
+| `importsToEmpty` | Optional list of import IRIs resolved to an empty ontology, for ontologies this manifest does not pin        |
+| `notes`          | Optional free text                                                                                           |
 
 Two rules are enforced, and the check script refuses an entry that breaks
 either: every entry names a license, and a pinned source names a digest.
@@ -180,11 +180,11 @@ gives the parameters and the ranking, and what the route never returns.
 three tiers, because TDB2 directories are not byte-stable and blank node
 labels are minted per parser run:
 
-| Tier | Check | Catches |
-| --- | --- | --- |
-| 1 | per-graph quad counts | a graph that gained or lost content |
-| 2 | blank-node-blinded sorted hash | a changed value anywhere, including inside a blank node |
-| 3 | per-graph `rdfcompare` isomorphism | everything above, plus blank node topology |
+| Tier | Check                              | Catches                                                 |
+| ---- | ---------------------------------- | ------------------------------------------------------- |
+| 1    | per-graph quad counts              | a graph that gained or lost content                     |
+| 2    | blank-node-blinded sorted hash     | a changed value anywhere, including inside a blank node |
+| 3    | per-graph `rdfcompare` isomorphism | everything above, plus blank node topology              |
 
 A comparison run reuses the mirrored documents the first build fetched. If
 the store predates the documents now in the cache, the check reports the

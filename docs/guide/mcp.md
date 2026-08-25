@@ -27,13 +27,13 @@ The endpoint takes POST. A client must accept both `application/json` and
 
 ## The tools
 
-| Tool | Answers |
-| --- | --- |
-| `list_sources` | Which ontologies are loaded, with version, licence, size and indexed entries |
-| `get_source` | One source in full, including its pinned download, digest, and what reasoning added |
-| `get_entity` | One entity IRI: label, definition, the triples its source asserts, and any parent a reasoner derived |
-| `find_entities` | Whole-word search over labels and definitions, with an optional source filter |
-| `sparql_query` | A read-only SPARQL 1.1 query over the whole store |
+| Tool            | Answers                                                                                              |
+| --------------- | ---------------------------------------------------------------------------------------------------- |
+| `list_sources`  | Which ontologies are loaded, with version, licence, size and indexed entries                         |
+| `get_source`    | One source in full, including its pinned download, digest, and what reasoning added                  |
+| `get_entity`    | One entity IRI: label, definition, the triples its source asserts, and any parent a reasoner derived |
+| `find_entities` | Whole-word search over labels and definitions, with an optional source filter                        |
+| `sparql_query`  | A read-only SPARQL 1.1 query over the whole store                                                    |
 
 Every answer names the source, its version and its licence, because
 licences differ between sources and an answer drawn from one has to credit

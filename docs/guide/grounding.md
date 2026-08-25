@@ -8,12 +8,12 @@ reader what published ontologies already say.
 GET /grounding?q=energy
 ```
 
-| Parameter | Meaning |
-| --- | --- |
-| `q` | The term to look up. Required. |
-| `limit` | Most results to return, 10 by default and 50 at most. |
-| `sources` | Comma-separated source keys to search within, from the catalogue. |
-| `includeMirror` | Set to 1 to include mirrored sources. |
+| Parameter       | Meaning                                                           |
+| --------------- | ----------------------------------------------------------------- |
+| `q`             | The term to look up. Required.                                    |
+| `limit`         | Most results to return, 10 by default and 50 at most.             |
+| `sources`       | Comma-separated source keys to search within, from the catalogue. |
+| `includeMirror` | Set to 1 to include mirrored sources.                             |
 
 The answer is JSON:
 

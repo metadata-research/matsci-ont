@@ -4,19 +4,23 @@
   "type": "module",
   "packageManager": "pnpm@10.34.5",
   "scripts": {
+    "app": "node app/app.mjs",
     "check:manifest": "node pipeline/check-manifest.mjs",
+    "dev": "node app/dev.mjs",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "ingest": "node pipeline/ingest.mjs",
-    "verify": "node pipeline/verify.mjs",
-    "verify:full": "node pipeline/verify.mjs --determinism",
-    "test": "node pipeline/test-derive.mjs && node pipeline/test-compare.mjs && node pipeline/test-reason.mjs && node mcp/test-app.mjs && node mcp/test-mcp.mjs",
-    "test:derive": "node pipeline/test-derive.mjs",
-    "test:compare": "node pipeline/test-compare.mjs",
-    "test:reason": "node pipeline/test-reason.mjs",
-    "test:app": "node mcp/test-app.mjs",
+    "lint": "eslint .",
     "serve": "node pipeline/serve.mjs",
-    "app": "node mcp/app.mjs",
-    "dev": "node mcp/dev.mjs",
-    "test:mcp": "node mcp/test-mcp.mjs"
+    "test": "node pipeline/test-derive.mjs && node pipeline/test-compare.mjs && node pipeline/test-reason.mjs && node app/test-app.mjs && node app/test-mcp.mjs",
+    "test:app": "node app/test-app.mjs",
+    "test:compare": "node pipeline/test-compare.mjs",
+    "test:derive": "node pipeline/test-derive.mjs",
+    "test:mcp": "node app/test-mcp.mjs",
+    "test:pure": "node pipeline/test-derive.mjs && node app/test-app.mjs",
+    "test:reason": "node pipeline/test-reason.mjs",
+    "verify": "node pipeline/verify.mjs",
+    "verify:full": "node pipeline/verify.mjs --determinism"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.30.0",
@@ -24,5 +28,12 @@
     "cytoscape-dagre": "4.0.0",
     "dagre": "0.8.5",
     "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@eslint/js": "9.39.0",
+    "eslint": "9.39.0",
+    "eslint-config-prettier": "10.1.8",
+    "globals": "16.5.0",
+    "prettier": "3.6.2"
   }
 }

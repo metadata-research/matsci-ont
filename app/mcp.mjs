@@ -4,18 +4,18 @@
 // refuses reuse in stateless mode, and stateless is what suits a service
 // that holds no session state of its own.
 
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import { z } from "zod";
-import { RejectedInput } from "./lib/sparql.mjs";
+import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js"
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js"
+import { z } from "zod"
+import { RejectedInput } from "./lib/sparql.mjs"
 import {
   listSources,
   getSource,
   getEntity,
   findEntities,
   sparqlQuery,
-  ROW_CAP,
-} from "./data.mjs";
+  ROW_CAP
+} from "./data.mjs"
 
 export const INSTRUCTIONS = `MatSci-ONT serves versioned snapshots of published materials-science
 ontologies: PMD Core Ontology, CHAMEO, the Materials Design Ontology, and
@@ -38,25 +38,25 @@ present it as free to reuse.
 
 A hierarchy placement marked inferred was derived by an OWL reasoner
 (HermiT) at build time and is not asserted by the source. Say so when
-passing one on.`;
+passing one on.`
 
 // A tool result carries both the readable text and the structured payload,
 // so a client that reads either sees the same thing.
 function result(payload) {
   return {
     content: [{ type: "text", text: JSON.stringify(payload, null, 2) }],
-    structuredContent: payload,
-  };
+    structuredContent: payload
+  }
 }
 
 // A rejected input is the caller's mistake and says what to do instead. Any
 // other failure is this service's and is passed on as its message.
 async function answering(work) {
   try {
-    return result(await work());
+    return result(await work())
   } catch (error) {
-    if (error instanceof RejectedInput) throw new Error(error.message);
-    throw error;
+    if (error instanceof RejectedInput) throw new Error(error.message)
+    throw error
   }
 }
 
@@ -73,8 +73,8 @@ const sourceShape = {
   ontologyIri: z.string().optional(),
   mirrorOf: z.string().optional(),
   mirroredFrom: z.string().optional(),
-  authorityBase: z.string().optional(),
-};
+  authorityBase: z.string().optional()
+}
 
 // Declared on every tool that can cut its answer, so a client reads the
 // cap signal from the schema rather than discovering it.
@@ -89,11 +89,11 @@ const findShape = {
       license: z.string(),
       clearedForPublication: z.boolean().optional(),
       mirrorOf: z.string().optional(),
-      mirroredFrom: z.string().optional(),
-    }),
+      mirroredFrom: z.string().optional()
+    })
   ),
-  truncated: z.boolean(),
-};
+  truncated: z.boolean()
+}
 
 const entityShape = {
   iri: z.string(),
@@ -109,7 +109,7 @@ const entityShape = {
       license: z.string(),
       clearedForPublication: z.boolean().optional(),
       mirrorOf: z.string().optional(),
-      mirroredFrom: z.string().optional(),
+      mirroredFrom: z.string().optional()
     })
     .optional(),
   triples: z
@@ -120,16 +120,22 @@ const entityShape = {
         object: z.string(),
         objectKind: z.string(),
         language: z.string().optional(),
-        graph: z.string(),
-      }),
+        graph: z.string()
+      })
     )
     .optional(),
   referencedBy: z
-    .array(z.object({ iri: z.string(), label: z.string().optional(), predicate: z.string() }))
+    .array(
+      z.object({
+        iri: z.string(),
+        label: z.string().optional(),
+        predicate: z.string()
+      })
+    )
     .optional(),
   inferredParents: z.array(z.string()).optional(),
-  truncated: z.boolean(),
-};
+  truncated: z.boolean()
+}
 
 const queryShape = {
   form: z.string(),
@@ -137,14 +143,14 @@ const queryShape = {
   rows: z.array(z.record(z.string(), z.string())).optional(),
   boolean: z.boolean().optional(),
   turtle: z.string().optional(),
-  truncated: z.boolean(),
-};
+  truncated: z.boolean()
+}
 
 export function buildMcpServer() {
   const server = new McpServer(
     { name: "matsci-ont", version: "0.1.0" },
-    { instructions: INSTRUCTIONS },
-  );
+    { instructions: INSTRUCTIONS }
+  )
 
   server.registerTool(
     "list_sources",
@@ -154,10 +160,10 @@ export function buildMcpServer() {
         "The ontologies this hub holds, with version, licence, size, and how many entries are indexed from each.",
       inputSchema: {},
       outputSchema: { sources: z.array(z.object(sourceShape)) },
-      annotations: { readOnlyHint: true, idempotentHint: true },
+      annotations: { readOnlyHint: true, idempotentHint: true }
     },
-    async () => answering(async () => ({ sources: await listSources() })),
-  );
+    async () => answering(async () => ({ sources: await listSources() }))
+  )
 
   server.registerTool(
     "get_source",
@@ -166,12 +172,16 @@ export function buildMcpServer() {
       description:
         "One source in full: its catalogue record, the pinned download and digest, and what reasoning added.",
       inputSchema: {
-        key: z.string().describe("Source key, as returned by list_sources, for example pmdco"),
+        key: z
+          .string()
+          .describe(
+            "Source key, as returned by list_sources, for example pmdco"
+          )
       },
-      annotations: { readOnlyHint: true, idempotentHint: true },
+      annotations: { readOnlyHint: true, idempotentHint: true }
     },
-    async ({ key }) => answering(() => getSource(key)),
-  );
+    async ({ key }) => answering(() => getSource(key))
+  )
 
   server.registerTool(
     "get_entity",
@@ -180,13 +190,17 @@ export function buildMcpServer() {
       description:
         "Everything the store holds about one entity IRI: its label and definition with the source that states them, the triples the source asserts, and any parent an OWL reasoner derived.",
       inputSchema: {
-        iri: z.string().describe("Absolute http or https IRI of a class, property or concept"),
+        iri: z
+          .string()
+          .describe(
+            "Absolute http or https IRI of a class, property or concept"
+          )
       },
       outputSchema: entityShape,
-      annotations: { readOnlyHint: true, idempotentHint: true },
+      annotations: { readOnlyHint: true, idempotentHint: true }
     },
-    async ({ iri }) => answering(() => getEntity(iri)),
-  );
+    async ({ iri }) => answering(() => getEntity(iri))
+  )
 
   server.registerTool(
     "find_entities",
@@ -195,25 +209,34 @@ export function buildMcpServer() {
       description:
         "Search labels and definitions across every source, matching whole words. Returns each hit with its source, version and licence.",
       inputSchema: {
-        q: z.string().min(1).describe("Term to search for, matched on word boundaries"),
+        q: z
+          .string()
+          .min(1)
+          .describe("Term to search for, matched on word boundaries"),
         sources: z
           .array(z.string())
           .optional()
           .describe("Optional source keys to search within, from list_sources"),
-        limit: z.number().int().min(1).max(200).optional().describe("Maximum hits, default 20"),
+        limit: z
+          .number()
+          .int()
+          .min(1)
+          .max(200)
+          .optional()
+          .describe("Maximum hits, default 20")
       },
       outputSchema: findShape,
-      annotations: { readOnlyHint: true, idempotentHint: true },
+      annotations: { readOnlyHint: true, idempotentHint: true }
     },
-    async ({ q, sources, limit }) => answering(() => findEntities(q, { sources, limit })),
-  );
+    async ({ q, sources, limit }) =>
+      answering(() => findEntities(q, { sources, limit }))
+  )
 
   server.registerTool(
     "sparql_query",
     {
       title: "SPARQL query",
-      description:
-        `Run a read-only SPARQL 1.1 query over the whole store. SELECT, ASK, CONSTRUCT and DESCRIBE only. A query without GRAPH sees every source at once. SELECT rows are capped, at ${ROW_CAP} at most, and a cut answer says so in its truncated field. A CONSTRUCT or DESCRIBE is returned whole, so give it a LIMIT: an answer that passes 2 MB is refused rather than assembled. Named graphs are listed by list_sources.`,
+      description: `Run a read-only SPARQL 1.1 query over the whole store. SELECT, ASK, CONSTRUCT and DESCRIBE only. A query without GRAPH sees every source at once. SELECT rows are capped, at ${ROW_CAP} at most, and a cut answer says so in its truncated field. A CONSTRUCT or DESCRIBE is returned whole, so give it a LIMIT: an answer that passes 2 MB is refused rather than assembled. Named graphs are listed by list_sources.`,
       inputSchema: {
         query: z.string().min(1).describe("SPARQL query text"),
         limit: z
@@ -222,15 +245,15 @@ export function buildMcpServer() {
           .min(1)
           .max(ROW_CAP)
           .optional()
-          .describe(`Maximum rows, default 200, at most ${ROW_CAP}`),
+          .describe(`Maximum rows, default 200, at most ${ROW_CAP}`)
       },
       outputSchema: queryShape,
-      annotations: { readOnlyHint: true, idempotentHint: true },
+      annotations: { readOnlyHint: true, idempotentHint: true }
     },
-    async ({ query, limit }) => answering(() => sparqlQuery(query, { limit })),
-  );
+    async ({ query, limit }) => answering(() => sparqlQuery(query, { limit }))
+  )
 
-  return server;
+  return server
 }
 
 // A request body is held in memory while it is parsed, and this process
@@ -238,33 +261,33 @@ export function buildMcpServer() {
 // rather than by the transport without one. A declared length over the
 // ceiling is refused in app.mjs before any of it is read; this bounds the
 // rest, chunked bodies included.
-export const MAX_REQUEST_BYTES = 1024 * 1024;
+export const MAX_REQUEST_BYTES = 1024 * 1024
 
 class BodyTooLarge extends Error {}
 
 async function readBody(request) {
-  const chunks = [];
-  let size = 0;
+  const chunks = []
+  let size = 0
   for await (const chunk of request) {
-    size += chunk.length;
+    size += chunk.length
     if (size > MAX_REQUEST_BYTES) {
-      request.destroy();
-      throw new BodyTooLarge();
+      request.destroy()
+      throw new BodyTooLarge()
     }
-    chunks.push(chunk);
+    chunks.push(chunk)
   }
-  return Buffer.concat(chunks).toString("utf8");
+  return Buffer.concat(chunks).toString("utf8")
 }
 
 // Answers one MCP request. The transport writes the status, headers and
 // body itself, so the caller must not have touched the response.
 export async function handleMcpRequest(request, response) {
-  let parsed;
+  let parsed
   try {
-    const raw = await readBody(request);
-    parsed = raw === "" ? undefined : JSON.parse(raw);
+    const raw = await readBody(request)
+    parsed = raw === "" ? undefined : JSON.parse(raw)
   } catch (error) {
-    const tooLarge = error instanceof BodyTooLarge;
+    const tooLarge = error instanceof BodyTooLarge
     if (!response.headersSent) {
       response
         .writeHead(tooLarge ? 413 : 400, { "Content-Type": "application/json" })
@@ -275,24 +298,24 @@ export async function handleMcpRequest(request, response) {
               code: tooLarge ? -32000 : -32700,
               message: tooLarge
                 ? `A request may be at most ${MAX_REQUEST_BYTES / 1024} KB.`
-                : "The request body is not JSON.",
+                : "The request body is not JSON."
             },
-            id: null,
-          }),
-        );
+            id: null
+          })
+        )
     }
-    return;
+    return
   }
 
-  const server = buildMcpServer();
+  const server = buildMcpServer()
   const transport = new StreamableHTTPServerTransport({
     sessionIdGenerator: undefined,
-    enableJsonResponse: true,
-  });
+    enableJsonResponse: true
+  })
   response.on("close", () => {
-    transport.close();
-    server.close();
-  });
-  await server.connect(transport);
-  await transport.handleRequest(request, response, parsed);
+    transport.close()
+    server.close()
+  })
+  await server.connect(transport)
+  await transport.handleRequest(request, response, parsed)
 }
