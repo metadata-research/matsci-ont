@@ -8,18 +8,21 @@
     "ingest": "node pipeline/ingest.mjs",
     "verify": "node pipeline/verify.mjs",
     "verify:full": "node pipeline/verify.mjs --determinism",
-    "test": "node pipeline/test-derive.mjs && node pipeline/test-compare.mjs && node pipeline/test-reason.mjs && node mcp/test-app.mjs",
+    "test": "node pipeline/test-derive.mjs && node pipeline/test-compare.mjs && node pipeline/test-reason.mjs && node mcp/test-app.mjs && node mcp/test-mcp.mjs",
     "test:derive": "node pipeline/test-derive.mjs",
     "test:compare": "node pipeline/test-compare.mjs",
     "test:reason": "node pipeline/test-reason.mjs",
     "test:app": "node mcp/test-app.mjs",
     "serve": "node pipeline/serve.mjs",
     "app": "node mcp/app.mjs",
-    "dev": "node mcp/dev.mjs"
+    "dev": "node mcp/dev.mjs",
+    "test:mcp": "node mcp/test-mcp.mjs"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "1.30.0",
     "cytoscape": "3.34.1",
     "cytoscape-dagre": "4.0.0",
-    "dagre": "0.8.5"
+    "dagre": "0.8.5",
+    "zod": "4.4.3"
   }
 }

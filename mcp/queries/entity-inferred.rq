@@ -1,0 +1,8 @@
+# Serves get_entity: the parents reasoning placed this entity under, which
+# entity.rq excludes so that the source triples stay separate from what was
+# derived from them.
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+SELECT ?parent WHERE {
+  GRAPH <@@INFGRAPH@@> { <@@IRI@@> rdfs:subClassOf ?parent }
+}
+ORDER BY ?parent

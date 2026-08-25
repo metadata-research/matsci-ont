@@ -1,0 +1,7 @@
+# Serves get_source: every statement the catalogue makes about one source,
+# including the reasoning record.
+PREFIX ont: <@@ONT@@>
+SELECT ?p ?o WHERE {
+  GRAPH <@@CATALOG@@> { ?s ont:sourceKey @@KEY@@ ; ?p ?o }
+}
+ORDER BY ?p

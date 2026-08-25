@@ -1,0 +1,19 @@
+# Serves the find_entities tool: the search-page match with an optional
+# source filter and a caller-chosen cap. The filter fragment is built from
+# keys validated by checkKey and the limit from a validated integer, so
+# neither carries caller text into the query.
+PREFIX ont: <@@ONT@@>
+SELECT ?s ?label ?definition ?key ?version ?license WHERE {
+  GRAPH <@@DEFS@@> {
+    ?s ont:label ?label ; ont:sourceKey ?key ; ont:sourceVersion ?version ;
+       ont:license ?license .
+    OPTIONAL { ?s ont:definition ?definition }
+    FILTER(
+      REGEX(STR(?label), CONCAT("\\b", @@REGEX@@), "i") ||
+      (BOUND(?definition) && REGEX(STR(?definition), CONCAT("\\b", @@REGEX@@), "i"))
+    )
+    @@SOURCEFILTER@@
+  }
+}
+ORDER BY ?key ?label
+LIMIT @@LIMIT@@

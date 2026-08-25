@@ -425,6 +425,40 @@ try {
         record("the inferred toggle shows a parent the asserted view does not", false, "no inferred-only pair found");
       }
 
+      // The MCP endpoint answers, and only on the loopback interface. The
+      // tool surface itself is exercised by mcp/test-mcp.mjs with the
+      // client from the same SDK.
+      const mcp = await fetch(`http://127.0.0.1:${appPort}/mcp`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json, text/event-stream",
+        },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "tools/list",
+          params: {},
+        }),
+      });
+      const listed = mcp.ok ? JSON.parse(await mcp.text()) : undefined;
+      const toolNames = (listed?.result?.tools ?? []).map((tool) => tool.name).sort();
+      record(
+        "the MCP endpoint lists its five tools",
+        toolNames.join(",") === "find_entities,get_entity,get_source,list_sources,sparql_query",
+        toolNames.join(",") || `HTTP ${mcp.status}`,
+      );
+
+      // The bound address, not a probe: connecting to 0.0.0.0 from this
+      // machine reaches a loopback listener anyway, so a probe proves
+      // nothing about the binding.
+      const bound = app.address();
+      record(
+        "the application is bound to the loopback interface",
+        bound?.address === "127.0.0.1",
+        `${bound?.address}:${bound?.port}`,
+      );
+
       const pmdcoGraph = JSON.parse((await page("/graph/pmdco.json")).text);
       const mdoGraph = JSON.parse((await page("/graph/mdo.json")).text);
       record(

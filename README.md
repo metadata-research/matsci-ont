@@ -18,7 +18,7 @@ recorded there are closed unless listed as open.
 | --- | --- |
 | `manifest/` | One JSON file per source, the record the store is built from |
 | `pipeline/` | Ingestion and check scripts |
-| `mcp/` | The MCP server (Phase 3) |
+| `mcp/` | The application: browse pages, the MCP endpoint, and their queries |
 | `deploy/` | Drafts of host material, reviewed copies land in the private ops repository |
 | `docs/` | Project documentation |
 
@@ -155,11 +155,13 @@ Port 3031 is the default because port 3030 is the local MatSci-SAM store on
 a workstation that runs both. In production the two are one Fuseki process
 serving two datasets.
 
-`pnpm dev` starts the store and the browse application together. The
-application is at `http://localhost:3100/`: catalogue, class hierarchies,
+`pnpm dev` starts the store and the application together. The application
+is at `http://localhost:3100/`: catalogue, class hierarchies,
 entity pages with verbalized OWL axioms, word-boundary search, and a
 Cytoscape graph view. [The browsing guide](docs/guide/browsing.md)
-describes the pages. The web UI and the admin API of Fuseki are both
+describes the pages. The same process answers the Model Context Protocol at
+`/mcp`, described in [the MCP guide](docs/guide/mcp.md), so an AI client can
+query the ontologies directly. The web UI and the admin API of Fuseki are both
 closed, as they are on the hosts, because the admin API takes no
 credential and will create a dataset on request. `pnpm verify` asserts
 they stay closed.
