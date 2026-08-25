@@ -14,7 +14,8 @@
 
 import { writeFile, mkdir, readFile, rm } from "node:fs/promises"
 import { join } from "node:path"
-import { ROOT, robotEnvironment, runRobot, runJena } from "./lib/tools.mjs"
+import { robotEnvironment, runRobot, runJena } from "../shared/tools.mjs"
+import { ROOT } from "../shared/paths.mjs"
 import { artifactsOf, extensionFor } from "./lib/manifest.mjs"
 import { inferredGraphFor } from "../shared/vocabulary.mjs"
 

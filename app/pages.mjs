@@ -9,13 +9,13 @@ import {
   inferredGraphPrefix
 } from "../shared/vocabulary.mjs"
 import {
-  select,
   checkIri,
   checkKey,
   literal,
   regexLiteral,
   safeHref
-} from "./lib/sparql.mjs"
+} from "./lib/terms.mjs"
+import { select } from "./lib/store.mjs"
 import {
   escape,
   attr,

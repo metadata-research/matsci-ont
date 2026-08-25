@@ -20,12 +20,12 @@ import { mkdir, rm, rename, writeFile } from "node:fs/promises"
 import { access } from "node:fs/promises"
 import { join } from "node:path"
 import {
-  ROOT,
   jenaEnvironment,
   runJena,
   hashFile,
   download
-} from "./lib/tools.mjs"
+} from "../shared/tools.mjs"
+import { ROOT } from "../shared/paths.mjs"
 import {
   loadManifest,
   artifactsOf,

@@ -4,12 +4,8 @@
 //   pnpm dev
 
 import { join } from "node:path"
-import { ROOT } from "../pipeline/lib/tools.mjs"
-import {
-  startFuseki,
-  stopFuseki,
-  DEFAULT_PORT
-} from "../pipeline/lib/fuseki.mjs"
+import { ROOT } from "../shared/paths.mjs"
+import { startFuseki, stopFuseki, DEFAULT_PORT } from "../shared/fuseki.mjs"
 import { startApp, DEFAULT_APP_PORT } from "./app.mjs"
 
 // The application can fail to start, a port already in use being the

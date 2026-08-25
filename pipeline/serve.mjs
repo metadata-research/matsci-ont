@@ -3,8 +3,8 @@
 //   node pipeline/serve.mjs [--port=3031]
 
 import { join } from "node:path"
-import { ROOT } from "./lib/tools.mjs"
-import { startFuseki, stopFuseki, DEFAULT_PORT } from "./lib/fuseki.mjs"
+import { ROOT } from "../shared/paths.mjs"
+import { startFuseki, stopFuseki, DEFAULT_PORT } from "../shared/fuseki.mjs"
 
 const portArgument = process.argv.find((a) => a.startsWith("--port="))
 const port = portArgument

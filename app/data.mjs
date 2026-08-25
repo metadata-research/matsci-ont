@@ -8,16 +8,14 @@ import {
   inferredGraphPrefix
 } from "../shared/vocabulary.mjs"
 import {
-  select,
   checkIri,
   checkKey,
   literal,
   regexLiteral,
-  QUERY_URL,
-  RejectedInput,
-  readCapped,
-  MAX_ANSWER_BYTES
-} from "./lib/sparql.mjs"
+  RejectedInput
+} from "./lib/terms.mjs"
+import { select, readCapped, MAX_ANSWER_BYTES } from "./lib/store.mjs"
+import { queryUrl } from "../shared/endpoint.mjs"
 
 const graphs = graphIris()
 const ONT = vocabularyIri()
@@ -451,7 +449,7 @@ export async function sparqlQuery(query, { limit } = {}) {
   const sent = form === "SELECT" ? (withRowLimit(text, cap + 1) ?? text) : text
   let response
   try {
-    response = await fetch(QUERY_URL, {
+    response = await fetch(queryUrl(), {
       method: "POST",
       headers: {
         "Content-Type": "application/sparql-query",

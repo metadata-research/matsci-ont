@@ -8,9 +8,10 @@
 import { spawnSync } from "node:child_process"
 import { readFile, rm, writeFile, mkdir } from "node:fs/promises"
 import { join } from "node:path"
-import { ROOT, jenaEnvironment, hashFile } from "./lib/tools.mjs"
+import { jenaEnvironment, hashFile } from "../shared/tools.mjs"
+import { ROOT } from "../shared/paths.mjs"
 import { loadManifest, extensionFor } from "./lib/manifest.mjs"
-import { startFuseki, stopFuseki, query } from "./lib/fuseki.mjs"
+import { startFuseki, stopFuseki, query } from "../shared/fuseki.mjs"
 import { graphCounts, dumpBlinded, graphsIsomorphic } from "./lib/compare.mjs"
 import {
   graphIris,
@@ -417,9 +418,7 @@ try {
     )
   }
 
-  // The browse application, started against the same store. The query URL
-  // is set before the app is imported, because app/lib/sparql.mjs captures
-  // it in a module-level constant at load time.
+  // The browse application, started against the same store.
   {
     const appPort = 3199
     process.env.MATSCI_ONT_QUERY_URL = `${server.base}/query`

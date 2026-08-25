@@ -17,7 +17,7 @@ import {
 } from "./pages.mjs"
 import { errorPage } from "./lib/html.mjs"
 import { grounding } from "./data.mjs"
-import { RejectedInput } from "./lib/sparql.mjs"
+import { RejectedInput } from "./lib/terms.mjs"
 import { handleMcpRequest, MAX_REQUEST_BYTES } from "./mcp.mjs"
 
 const require = createRequire(import.meta.url)

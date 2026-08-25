@@ -11,7 +11,7 @@
 import { mkdtemp, rm, writeFile, mkdir } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { jenaEnvironment, runJena } from "./lib/tools.mjs"
+import { jenaEnvironment, runJena } from "../shared/tools.mjs"
 import {
   blindBlankNodes,
   dumpBlinded,

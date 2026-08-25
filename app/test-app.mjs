@@ -13,7 +13,7 @@ import {
   literal,
   regexLiteral,
   safeHref
-} from "./lib/sparql.mjs"
+} from "./lib/terms.mjs"
 import { allowedSources, maskQuery, withRowLimit, queryForm } from "./data.mjs"
 import { escape } from "./lib/html.mjs"
 

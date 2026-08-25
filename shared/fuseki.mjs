@@ -3,7 +3,9 @@
 import { spawn } from "node:child_process"
 import { readFile, writeFile, mkdir } from "node:fs/promises"
 import { join } from "node:path"
-import { ROOT, fusekiHome, loadPins } from "./tools.mjs"
+import { ROOT } from "./paths.mjs"
+import { DEFAULT_STORE_PORT, DATASET } from "./endpoint.mjs"
+import { fusekiHome, loadPins } from "./tools.mjs"
 
 const TEMPLATE = join(ROOT, "deploy/fuseki/matsci-ont-dev.ttl.template")
 
@@ -15,10 +17,10 @@ export async function writeConfig(storeLocation) {
   return path
 }
 
-// Port 3030 is the local MatSci-SAM development store on a workstation that
-// runs both, so MatSci-ONT takes the next port. In production the two are one
-// Fuseki process serving two datasets, and neither takes a second port.
-export const DEFAULT_PORT = Number(process.env.MATSCI_ONT_FUSEKI_PORT ?? 3031)
+// Re-exported so the callers that start a store keep one import, while the
+// port itself is defined once, next to the URL the application builds from
+// it.
+export const DEFAULT_PORT = DEFAULT_STORE_PORT
 
 // Resolves once the server answers, or rejects after the timeout. The child
 // is returned so the caller can stop it.
@@ -63,7 +65,7 @@ export async function startFuseki({
   child.stdout.on("data", (d) => log.push(d.toString()))
   child.stderr.on("data", (d) => log.push(d.toString()))
 
-  const base = `http://localhost:${port}/matsci-ont`
+  const base = `http://localhost:${port}/${DATASET}`
   const deadline = Date.now() + timeoutMs
   while (Date.now() < deadline) {
     if (child.exitCode !== null) {

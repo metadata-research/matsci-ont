@@ -18,7 +18,7 @@
 import { writeFile, mkdir } from "node:fs/promises"
 import { join } from "node:path"
 import { createHash } from "node:crypto"
-import { runJena } from "./tools.mjs"
+import { runJena } from "../../shared/tools.mjs"
 
 const DEFAULT_GRAPH = "urn:x-arq:DefaultGraph"
 

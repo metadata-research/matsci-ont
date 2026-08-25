@@ -10,7 +10,7 @@
 import { mkdtemp, rm, writeFile, mkdir } from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
-import { robotEnvironment, runRobot } from "./lib/tools.mjs"
+import { robotEnvironment, runRobot } from "../shared/tools.mjs"
 import { reasonSource, parsePairCsv, subtractAsserted } from "./reason.mjs"
 
 const failures = []

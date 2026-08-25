@@ -31,6 +31,44 @@ export default defineConfig([
     }
   },
   {
+    // The layering, enforced rather than described. shared/ holds what both
+    // need, so neither layer has a reason to import the other. The one
+    // deliberate crossing is the end-to-end harness in pipeline/verify.mjs,
+    // which loads the application on purpose and says so.
+    files: ["app/**/*.mjs"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["**/pipeline/**"],
+              message:
+                "app/ must not import pipeline/. Anything both layers need belongs in shared/."
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    files: ["shared/**/*.mjs"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["**/app/**", "**/pipeline/**"],
+              message:
+                "shared/ is what both layers may depend on, so it depends on neither."
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
     // A browser script served to a page, not run by Node.
     files: ["app/static/**/*.js"],
     languageOptions: { globals: { ...globals.browser } }

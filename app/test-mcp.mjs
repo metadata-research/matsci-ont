@@ -8,8 +8,8 @@
 import { join } from "node:path"
 import { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js"
-import { ROOT } from "../pipeline/lib/tools.mjs"
-import { startFuseki, stopFuseki } from "../pipeline/lib/fuseki.mjs"
+import { ROOT } from "../shared/paths.mjs"
+import { startFuseki, stopFuseki } from "../shared/fuseki.mjs"
 
 const PORT = 3198
 const failures = []

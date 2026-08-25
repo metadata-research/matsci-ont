@@ -1,5 +1,9 @@
-// Locates the pinned Jena tools and Java runtime, downloading and verifying
+// Locates the pinned tools and the Java runtime, downloading and verifying
 // them into tools/ on first use. tools/ is not tracked.
+//
+// Both layers need these: the build reasons and loads with the Jena tools
+// and ROBOT, and the application starts a Fuseki from the same pinned
+// tarball, so the installer is here rather than in either layer.
 
 import { createHash } from "node:crypto"
 import { spawnSync } from "node:child_process"
@@ -14,14 +18,10 @@ import {
 import { createReadStream } from "node:fs"
 import { join } from "node:path"
 
-export const ROOT = new URL("../../", import.meta.url).pathname.replace(
-  /\/$/,
-  ""
-)
-export const TOOLS_DIR = join(ROOT, "tools")
+import { ROOT, TOOLS_DIR } from "./paths.mjs"
 
 export async function loadPins() {
-  return JSON.parse(await readFile(join(ROOT, "pipeline/tools.json"), "utf8"))
+  return JSON.parse(await readFile(join(ROOT, "shared/tools.json"), "utf8"))
 }
 
 async function exists(path) {

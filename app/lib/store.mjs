@@ -1,56 +1,15 @@
-// Loads named queries from mcp/queries/ and runs them against the loopback
-// Fuseki query endpoint. User input reaches a query only through the typed
-// substitutions here, never through raw string interpolation.
+// Reads the store: named queries, and the one HTTP client that runs them.
+//
+// The endpoint is resolved per call rather than captured when this module
+// loads. Capturing it made the answer depend on import order, which a
+// caller cannot see: a harness that set the variable one statement too
+// late queried a different store and said nothing.
 
 import { readFile } from "node:fs/promises"
 import { join } from "node:path"
+import { queryUrl } from "../../shared/endpoint.mjs"
 
 const QUERY_DIR = new URL("../queries/", import.meta.url).pathname
-
-export const QUERY_URL =
-  process.env.MATSCI_ONT_QUERY_URL ??
-  `http://127.0.0.1:${process.env.MATSCI_ONT_FUSEKI_PORT ?? 3031}/matsci-ont/query`
-
-// Thrown when client-supplied input is not a shape the store can hold. The
-// server turns it into a 404, distinct from a 502 for a store failure.
-export class RejectedInput extends Error {}
-
-// An IRI substitution goes between angle brackets, so anything that could
-// close the bracket or smuggle whitespace is refused rather than escaped. An
-// http or https IRI only, which is every identifier these sources mint.
-// 2048 characters is longer than any identifier these publishers mint and
-// short enough that a query built around one cannot be made large by the
-// argument alone.
-export const MAX_IRI_LENGTH = 2048
-
-export function checkIri(value) {
-  if (typeof value !== "string" || value.length > MAX_IRI_LENGTH) {
-    throw new RejectedInput(
-      `an IRI must be text of at most ${MAX_IRI_LENGTH} characters`
-    )
-  }
-  if (!/^https?:\/\/[^\s<>"{}|\\^`]+$/.test(value)) {
-    throw new RejectedInput(`not a substitutable IRI: ${value.slice(0, 80)}`)
-  }
-  return value
-}
-
-export function checkKey(value) {
-  if (typeof value !== "string" || !/^[a-z0-9][a-z0-9-]{0,63}$/.test(value)) {
-    throw new RejectedInput(`not a source key: ${String(value).slice(0, 80)}`)
-  }
-  return value
-}
-
-export function literal(value) {
-  return `"${String(value).replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\n/g, "\\n").replace(/\r/g, "\\r")}"`
-}
-
-// Escapes Java-regex metacharacters so a search string is matched verbatim
-// inside the word-boundary pattern the search query builds around it.
-export function regexLiteral(value) {
-  return literal(String(value).replace(/[.\\+*?[\]^$(){}=!<>|:#-]/g, "\\$&"))
-}
 
 const queryCache = new Map()
 
@@ -75,14 +34,6 @@ export async function namedQuery(name, substitutions) {
   if (missing)
     throw new Error(`query ${name} is missing substitution ${missing}`)
   return text
-}
-
-// An href allowlist for IRIs that come from the store as link targets. A
-// mapping object can be any IRI its author wrote, javascript: and data:
-// included, so only http and https reach an href attribute; anything else
-// renders as plain text.
-export function safeHref(iri) {
-  return /^https?:\/\//i.test(iri) ? iri : null
 }
 
 // Reads a response body up to a ceiling, reporting whether it stopped
@@ -119,7 +70,7 @@ export async function select(name, substitutions) {
   const query = await namedQuery(name, substitutions)
   let response
   try {
-    response = await fetch(QUERY_URL, {
+    response = await fetch(queryUrl(), {
       method: "POST",
       headers: {
         "Content-Type": "application/sparql-query",

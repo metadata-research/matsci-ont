@@ -2,7 +2,7 @@
 
 import { readdir, readFile } from "node:fs/promises"
 import { join } from "node:path"
-import { ROOT } from "./tools.mjs"
+import { ROOT } from "../../shared/paths.mjs"
 
 export const MANIFEST_DIR = join(ROOT, "manifest")
 

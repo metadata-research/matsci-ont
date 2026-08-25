@@ -16,7 +16,7 @@
 // rather than restating or re-licensing their vocabulary.
 
 import { writeFile } from "node:fs/promises"
-import { runJena } from "./tools.mjs"
+import { runJena } from "../../shared/tools.mjs"
 import { baseUrl } from "../../shared/vocabulary.mjs"
 
 const SKOS = "http://www.w3.org/2004/02/skos/core#"
