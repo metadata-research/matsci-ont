@@ -44,8 +44,10 @@ at build time and is not asserted by the source.
 
 `sparql_query` answers SELECT, ASK, CONSTRUCT and DESCRIBE. An update form
 such as INSERT or DELETE is refused with a message naming the four it
-takes. Results are capped, and a capped answer says so in its `truncated`
-field rather than looking complete.
+takes. SELECT rows are capped, and a capped answer says
+so in its `truncated` field rather than looking complete. A CONSTRUCT or
+DESCRIBE answer is bounded by size instead, and is refused outright if it
+passes the ceiling.
 
 An unknown IRI or source key comes back as a plain message saying what was
 not found.
@@ -53,7 +55,6 @@ not found.
 ## An example
 
 Asking a client for "the definition of sintering in every ontology you
-have" runs `find_entities`, which returns the hits from the PMD Core
-Ontology and the NIST Materials Data Vocabulary, each with its licence,
-and the client can then call `get_entity` on either IRI for the full
-record.
+have" runs `find_entities`, which returns a hit from every
+source that defines the term, each with its licence, and the client can
+then call `get_entity` on any of those IRIs for the full record.

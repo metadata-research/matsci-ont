@@ -9,7 +9,7 @@ author them, and it does not mint identifiers for their entities.
 The companion community metadata dictionary is
 [MatSci-SAM](https://github.com/metadata-research/matsci-sam). Planning and
 project state are kept in the group's private documentation rather than
-here; `CLAUDE.md` says where to find them and what to read first if you have
+here. `CLAUDE.md` says where to find them and what to read first if you have
 access to that tree.
 
 ## Layout
@@ -23,7 +23,7 @@ access to that tree.
 | `deploy/`   | Drafts of host material, reviewed copies land in the private ops repository |
 | `docs/`     | Project documentation                                                       |
 
-`app/` never imports `pipeline/`, and `shared/` imports neither; ESLint
+`app/` never imports `pipeline/`, and `shared/` imports neither, and ESLint
 enforces both. `docs/architecture.md` explains why and describes how the
 code is arranged.
 
@@ -53,8 +53,8 @@ is one JSON file in `manifest/` with these fields:
 | `importsToEmpty` | Optional list of import IRIs resolved to an empty ontology, for ontologies this manifest does not pin            |
 | `notes`          | Optional free text                                                                                               |
 
-Two rules are enforced, and the check script refuses an entry that breaks
-either: every entry names a license, and a pinned source names a digest.
+Two rules are enforced, and both the check and the build refuse an entry
+that breaks either: every entry names a license, and a pinned source names a digest.
 
 A **mirror** is the one kind of source declared to be moving. It carries a
 `fetchUrl`, a `sourceDataset`, and an `authorityBase` instead of a version
@@ -62,7 +62,8 @@ and a digest, and it is fetched fresh on each build. A failed fetch keeps
 the previous copy and the build continues.
 
 `republishable` records whether a source is cleared for public serving, and
-the check script refuses to set it while the licence is `UNDECLARED`. A
+the manifest rules refuse to set it while the licence is `UNDECLARED`, in
+the check and in the build alike. A
 source that is not cleared still loads on a workstation, where the operator
 is the only reader. `pnpm ingest --publication` leaves it out and builds
 the rest, which is the store a host receives. `build/ingest-report.json`
@@ -118,7 +119,8 @@ vocabulary. Only the catalogue resources and the small vocabulary under
 Label precedence is `skos:prefLabel` then `rdfs:label`. Definition
 precedence is `skos:definition`, then IAO 0000115, then the EMMO
 elucidation property, then `rdfs:comment`. Within a property, English is
-preferred, then any tagged language, then an untagged literal. An entity
+preferred, then a regional English, then an untagged literal, then any
+other tagged language. An entity
 with no label is skipped, because nothing could find it. An entity with a
 label and no definition is kept: the NIST vocabulary is a term list with no
 definitions at all, and it is 993 of the entries.
@@ -138,8 +140,8 @@ is a restatement. An inferred graph keeps only what reasoning added: pairs
 the sources do not already state. That is what lets a page mark a placement
 as inferred and be right. Of the 1,581 pairs PMDco entails, 1,466 are
 already asserted and 115 are new. CHAMEO, reasoned against the pinned EMMO
-closure, entails 2,137 and adds 86; before the closure was pinned it could
-add only 2. EMMO itself adds 82 of 1,924 entailed. MDO adds none. The two
+closure, entails 2,137 and adds 86. Before the closure was pinned it
+could add only 2. EMMO itself adds 82 of 1,924 entailed. MDO adds none. The two
 counts overlap by design: all 82 of EMMO's new pairs also appear in
 CHAMEO's 86, because each source's inferred graph stands alone and CHAMEO's
 inferred view needs the derived EMMO placements its ancestors sit on. The
@@ -162,8 +164,8 @@ inconsistent ontology fails the build.
 
 The hub mirrors the five graph documents [MatSci-SAM](https://ego.cci.drexel.edu)
 publishes, so one query reaches a community vocabulary term and a formal
-ontology class together. Its terms reach classes in PMDco, MDO and the
-NIST vocabulary by matching labels, which `pnpm verify` counts.
+ontology class together. Its terms reach classes in the pinned
+ontologies by matching labels, which `pnpm verify` counts.
 
 MatSci-SAM is the source of record. A source page, an entity page and a
 graph view of mirrored content carry a banner saying so with the date its

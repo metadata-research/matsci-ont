@@ -3,7 +3,7 @@
 MatSci-ONT holds versioned snapshots of published materials-science
 ontologies in a Jena Fuseki TDB2 store and serves them over a read-only
 SPARQL endpoint, a browse application, a grounding route and an MCP
-endpoint. It consumes ontologies other groups publish; it does not author
+endpoint. It consumes ontologies other groups publish. It does not author
 them and it does not mint identifiers for their entities.
 
 Read `README.md` for how to build and run it, and `docs/architecture.md`
@@ -35,8 +35,8 @@ which `pnpm verify:full` checks.
 
 ## Queries are files
 
-Every SPARQL query is a `.rq` file — `app/queries/` for the application,
-`pipeline/queries/` for verification — loaded by `shared/queries.mjs`, which
+Every SPARQL query is a `.rq` file, `app/queries/` for the application and
+`pipeline/queries/` for verification, loaded by `shared/queries.mjs`, which
 fills `@@TOKEN@@` placeholders in a single pass over the template.
 
 The single pass is a security property. Substituting token by token let a
@@ -63,8 +63,8 @@ clone re-downloads several hundred megabytes before the first build.
 **Cheap and expensive scripts.** `pnpm check:manifest`, `lint`,
 `format:check` and `test:pure` need neither Java nor a store, and are what
 CI runs on every push. `pnpm test` adds the suites needing the real Jena and
-ROBOT jars. `pnpm verify` needs a built store; `pnpm ingest` needs Java and
-network access.
+ROBOT jars. `pnpm verify` needs a built store, and `pnpm ingest` needs Java
+and network access.
 
 ## No network at build time
 
@@ -80,5 +80,5 @@ The phase model, the decisions already closed, and the rolling record of
 what is built are not in this repository. They live in the group's private
 documentation tree, mirrored to `docs-internal/` for those who have it,
 which is git-ignored. If that folder is present, read `docs-internal/`
-first; if it is not, this file, `README.md` and `docs/architecture.md` are
+first. If it is not, this file, `README.md` and `docs/architecture.md` are
 the complete public picture.
