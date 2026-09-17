@@ -11,8 +11,13 @@ export function escape(value) {
 
 export const attr = escape
 
+// The path this site is served under, empty when it owns the root. A proxy
+// strips the prefix before a request arrives, so it reaches only the links
+// and asset URLs written here, never the routes in app.mjs.
+export const base = process.env.MATSCI_ONT_BASE_PATH ?? ""
+
 export function entityUrl(iri, inferred) {
-  return `/entity?iri=${encodeURIComponent(iri)}${inferred ? "&inferred=1" : ""}`
+  return `${base}/entity?iri=${encodeURIComponent(iri)}${inferred ? "&inferred=1" : ""}`
 }
 
 // The readable tail of an IRI. A trailing slash is dropped first, so a
@@ -35,13 +40,13 @@ export function layout(title, body) {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${escape(title)} - MatSci-ONT</title>
-<link rel="stylesheet" href="/assets/style.css">
+<link rel="stylesheet" href="${base}/assets/style.css">
 </head>
 <body>
 <header>
 <nav>
-<a class="brand" href="/">MatSci-ONT</a>
-<form action="/search" method="get">
+<a class="brand" href="${base}/">MatSci-ONT</a>
+<form action="${base}/search" method="get">
 <input type="search" name="q" placeholder="Search labels and definitions" required>
 <button type="submit">Search</button>
 </form>
@@ -63,6 +68,6 @@ license of what they show.</p>
 export function errorPage(status, message) {
   return layout(
     `${status}`,
-    `<h1>${status}</h1><p>${escape(message)}</p><p><a href="/">Back to the catalogue</a></p>`
+    `<h1>${status}</h1><p>${escape(message)}</p><p><a href="${base}/">Back to the catalogue</a></p>`
   )
 }

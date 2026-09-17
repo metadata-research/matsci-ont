@@ -8,6 +8,7 @@
 import { checkIri, safeHref } from "../lib/terms.mjs"
 import { select } from "../lib/store.mjs"
 import {
+  base,
   escape,
   attr,
   layout,
@@ -120,7 +121,7 @@ ${
 }
 <p class="attribution">${
         source
-          ? `From <a href="/source/${attr(source.key.value)}">${escape(source.title.value)}</a>${
+          ? `From <a href="${base}/source/${attr(source.key.value)}">${escape(source.title.value)}</a>${
               source.version ? `, version ${escape(source.version.value)}` : ""
             }, license ${escape(source.license.value)}.`
           : "Not indexed from a catalogued source."

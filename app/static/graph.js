@@ -1,11 +1,13 @@
-// Draws one source's class hierarchy. The source key comes from the
-// container's data attribute rather than from a value interpolated into
-// this file, so nothing the page renders can reach the script.
+// Draws one source's class hierarchy. The source key and the path the site
+// is served under both come from the container's data attributes rather than
+// from values interpolated into this file, so nothing the page renders can
+// reach the script.
 ;(async () => {
   const container = document.getElementById("cy")
   const key = container.dataset.source
+  const base = container.dataset.base ?? ""
   const data = await (
-    await fetch(`/graph/${encodeURIComponent(key)}.json`)
+    await fetch(`${base}/graph/${encodeURIComponent(key)}.json`)
   ).json()
   document.getElementById("note").textContent = data.note
 

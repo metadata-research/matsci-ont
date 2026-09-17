@@ -2,7 +2,14 @@
 
 import { checkKey } from "../lib/terms.mjs"
 import { select } from "../lib/store.mjs"
-import { escape, attr, layout, errorPage, termLink } from "../lib/html.mjs"
+import {
+  base,
+  escape,
+  attr,
+  layout,
+  errorPage,
+  termLink
+} from "../lib/html.mjs"
 import { buildForest } from "../lib/tree.mjs"
 import {
   catalogueRows,
@@ -17,7 +24,7 @@ export async function cataloguePage() {
   const cards = rows
     .map(
       (row) => `<section class="card">
-<h2><a href="/source/${attr(row.key.value)}">${escape(row.title.value)}</a></h2>
+<h2><a href="${base}/source/${attr(row.key.value)}">${escape(row.title.value)}</a></h2>
 <table>
 <tr><th>${row.mirrorOf ? "Kind" : "Version"}</th><td>${
         row.mirrorOf
@@ -33,8 +40,8 @@ ${row.ontologyIri ? `<tr><th>Ontology IRI</th><td><code>${escape(row.ontologyIri
 <tr><th>Triples</th><td>${escape(Number(row.triples.value).toLocaleString("en-US"))}</td></tr>
 <tr><th>Indexed entries</th><td>${escape(Number(row.entries?.value ?? 0).toLocaleString("en-US"))}</td></tr>
 </table>
-<p><a href="/source/${attr(row.key.value)}">Browse</a> ·
-<a href="/graph/${attr(row.key.value)}">Graph view</a></p>
+<p><a href="${base}/source/${attr(row.key.value)}">Browse</a> ·
+<a href="${base}/graph/${attr(row.key.value)}">Graph view</a></p>
 </section>`
     )
     .join("\n")
@@ -86,7 +93,7 @@ export async function sourcePage(key, inferred) {
   const treeHtml = `<ul>${forest.map(renderNode).join("\n")}</ul>`
 
   const toggle = (await hasInferred(key))
-    ? `<p><a href="/source/${attr(key)}${showInferred ? "" : "?inferred=1"}">${
+    ? `<p><a href="${base}/source/${attr(key)}${showInferred ? "" : "?inferred=1"}">${
         showInferred
           ? "Show the asserted hierarchy"
           : "Show the inferred hierarchy"
@@ -107,7 +114,7 @@ ${source.ontologyIri ? `<tr><th>Ontology IRI</th><td><code>${escape(source.ontol
 <tr><th>Triples</th><td>${escape(Number(source.triples.value).toLocaleString("en-US"))}</td></tr>
 <tr><th>Indexed entries</th><td>${escape(Number(source.entries?.value ?? 0).toLocaleString("en-US"))}</td></tr>
 </table>
-<p><a href="/graph/${attr(key)}">Graph view</a></p>
+<p><a href="${base}/graph/${attr(key)}">Graph view</a></p>
 ${toggle}
 <h2>Hierarchy${showInferred ? " (asserted and inferred)" : ""}</h2>
 <p class="mark">${escape(count.toLocaleString("en-US"))} classes.</p>

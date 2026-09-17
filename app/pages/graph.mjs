@@ -5,6 +5,7 @@
 import { checkKey } from "../lib/terms.mjs"
 import { select } from "../lib/store.mjs"
 import {
+  base,
   escape,
   attr,
   layout,
@@ -103,13 +104,13 @@ export async function graphPage(key) {
       `Graph: ${source.title.value}`,
       `<h1>${escape(source.title.value)}</h1>
 ${mirrorBanner(source)}
-<p><a href="/source/${attr(key)}">Back to the source page</a></p>
+<p><a href="${base}/source/${attr(key)}">Back to the source page</a></p>
 <p><input id="filter" type="search" placeholder="Filter nodes by label"> <span id="note" class="mark"></span></p>
-<div id="cy" data-source="${attr(key)}"></div>
-<script src="/assets/cytoscape.min.js"></script>
-<script src="/assets/dagre.min.js"></script>
-<script src="/assets/cytoscape-dagre.min.js"></script>
-<script src="/assets/graph.js"></script>`
+<div id="cy" data-source="${attr(key)}" data-base="${attr(base)}"></div>
+<script src="${base}/assets/cytoscape.min.js"></script>
+<script src="${base}/assets/dagre.min.js"></script>
+<script src="${base}/assets/cytoscape-dagre.min.js"></script>
+<script src="${base}/assets/graph.js"></script>`
     )
   }
 }
