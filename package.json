@@ -2,7 +2,7 @@
   "name": "matsci-ont",
   "private": true,
   "type": "module",
-  "packageManager": "pnpm@10.34.5",
+  "packageManager": "pnpm@11.24.0",
   "scripts": {
     "app": "node app/app.mjs",
     "check:manifest": "node pipeline/check-manifest.mjs",
