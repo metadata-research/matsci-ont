@@ -115,7 +115,12 @@ async function fetchMirror(entry, artifact) {
   // A portal or proxy answering 200 with an HTML error page is a
   // successful fetch as far as HTTP is concerned, and writing it first
   // would destroy the good copy this failure path exists to preserve.
-  const incoming = `${path}.incoming`
+  // The staging name keeps the format's extension last, because riot reads
+  // the syntax from it: a trailing ".incoming" is a format it cannot name.
+  const incoming = join(
+    MIRROR_DIR,
+    `${entry.key}.incoming.${extensionFor(artifact.format)}`
+  )
   try {
     const response = await fetch(artifact.url, {
       signal: AbortSignal.timeout(60000)
