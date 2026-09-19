@@ -59,6 +59,16 @@ const manifest = await loadManifest()
 const fixtures = JSON.parse(
   await readFile(join(ROOT, "pipeline/fixtures.json"), "utf8")
 )
+
+// The report the build wrote beside the store names the sources it left
+// out. A publication build excludes what is not cleared for serving, and the
+// store is judged against what it was built to hold, not against the whole
+// manifest; the publication checks then prove the exclusions held.
+const report = JSON.parse(
+  await readFile(join(ROOT, "build/ingest-report.json"), "utf8")
+)
+const excluded = new Set(report.excludedFromPublication ?? [])
+const loaded = manifest.filter((entry) => !excluded.has(entry.key))
 await mkdir(WORK, { recursive: true })
 
 // Counts come from the store by location, not from Fuseki: the served
@@ -69,7 +79,10 @@ const counts = await graphCounts(environment, STORE, WORK)
 const context = {
   record,
   environment,
-  manifest,
+  manifest: loaded,
+  fullManifest: manifest,
+  excluded,
+  publication: Boolean(report.publication),
   counts,
   fixtures,
   work: WORK,
@@ -120,7 +133,16 @@ if (withDeterminism) await group("determinism", checkDeterminism, context)
 
 await writeFile(
   join(ROOT, "build/verify-report.json"),
-  `${JSON.stringify({ checkedAt: new Date().toISOString(), results }, null, 2)}\n`
+  `${JSON.stringify(
+    {
+      checkedAt: new Date().toISOString(),
+      publication: Boolean(report.publication),
+      excluded: [...excluded],
+      results
+    },
+    null,
+    2
+  )}\n`
 )
 
 const failed = results.filter((r) => !r.pass)

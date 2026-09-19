@@ -74,7 +74,7 @@ records which kind of store was built.
 ```bash
 pnpm check:manifest    # shape of every manifest entry
 pnpm ingest            # fetch, verify, validate, load into build/tdb2
-pnpm verify            # acceptance checks against the built store
+pnpm verify            # acceptance checks against the built store, judged by its build report
 pnpm verify:full       # the same, plus a second build compared to the first
 pnpm test              # index precedence, comparison tiers, reasoning guards
 pnpm serve             # serve the store locally on port 3031

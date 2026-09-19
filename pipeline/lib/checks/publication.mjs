@@ -11,8 +11,30 @@ import { spawnSync } from "node:child_process"
 import { join } from "node:path"
 import { ROOT } from "../../../shared/paths.mjs"
 
-export function checkPublication({ record, manifest }) {
-  const notCleared = manifest.filter((entry) => !entry.republishable)
+export function checkPublication({
+  record,
+  fullManifest,
+  excluded,
+  publication,
+  counts
+}) {
+  // A publication store must hold nothing it excluded. The other checks
+  // judge it against what it was built to hold; this one judges the rest.
+  if (publication) {
+    const present = fullManifest.filter(
+      (entry) =>
+        excluded.has(entry.key) && (counts.get(entry.graphIri) ?? 0) > 0
+    )
+    record(
+      "this publication build holds no source it excluded",
+      present.length === 0,
+      present.length > 0
+        ? `present: ${present.map((e) => e.key).join(", ")}`
+        : `${excluded.size} excluded, none present`
+    )
+  }
+
+  const notCleared = fullManifest.filter((entry) => !entry.republishable)
   if (notCleared.length === 0) return
 
   const attempt = spawnSync(
