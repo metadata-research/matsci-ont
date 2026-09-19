@@ -13,8 +13,9 @@ export const attr = escape
 
 // The path this site is served under, empty when it owns the root. A proxy
 // strips the prefix before a request arrives, so it reaches only the links
-// and asset URLs written here, never the routes in app.mjs.
-export const base = process.env.MATSCI_ONT_BASE_PATH ?? ""
+// and asset URLs written here, never the routes in app.mjs. A trailing slash
+// is dropped, because every URL below adds its own.
+export const base = (process.env.MATSCI_ONT_BASE_PATH ?? "").replace(/\/+$/, "")
 
 export function entityUrl(iri, inferred) {
   return `${base}/entity?iri=${encodeURIComponent(iri)}${inferred ? "&inferred=1" : ""}`
