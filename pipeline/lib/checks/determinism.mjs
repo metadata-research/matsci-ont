@@ -18,6 +18,7 @@ export async function checkDeterminism({
   record,
   environment,
   manifest,
+  publication,
   counts,
   work
 }) {
@@ -29,7 +30,12 @@ export async function checkDeterminism({
     // Reuses the mirrored documents the first build fetched: the point of
     // this comparison is whether the pipeline is deterministic, not whether
     // a publisher re-projected its dataset in between.
-    [join(ROOT, "pipeline/ingest.mjs"), "--no-swap", "--reuse-mirror"],
+    [
+      join(ROOT, "pipeline/ingest.mjs"),
+      "--no-swap",
+      "--reuse-mirror",
+      ...(publication ? ["--publication"] : [])
+    ],
     { cwd: ROOT, encoding: "utf8", maxBuffer: 1024 * 1024 * 64 }
   )
   if (rebuild.status !== 0) {
@@ -54,8 +60,8 @@ export async function checkDeterminism({
     differences.join("\n") || `${counts.size} graphs`
   )
 
-  const firstDump = dumpBlinded(environment, STORE)
-  const secondDump = dumpBlinded(environment, STAGING)
+  const firstDump = await dumpBlinded(environment, STORE)
+  const secondDump = await dumpBlinded(environment, STAGING)
   const same = firstDump.hash === secondDump.hash
   record(
     "tier 2, blank-node-blinded hashes match",
@@ -99,6 +105,7 @@ async function checkMirrorsUnchanged({ record, manifest }) {
   const stale = []
   for (const [key, digest] of Object.entries(report.mirrorDigests ?? {})) {
     const entry = manifest.find((e) => e.key === key)
+    if (!entry) continue
     const path = join(
       ROOT,
       "cache/mirror",

@@ -78,7 +78,8 @@ const different = await buildStore("card-b", restriction(3))
 
 expect(
   "identical inputs agree on the blinded hash",
-  dumpBlinded(environment, same1).hash === dumpBlinded(environment, same2).hash,
+  (await dumpBlinded(environment, same1)).hash ===
+    (await dumpBlinded(environment, same2)).hash,
   true
 )
 expect(
@@ -89,8 +90,8 @@ expect(
 )
 expect(
   "a changed cardinality has equal quad counts",
-  dumpBlinded(environment, same1).quads ===
-    dumpBlinded(environment, different).quads,
+  (await dumpBlinded(environment, same1)).quads ===
+    (await dumpBlinded(environment, different)).quads,
   true
 )
 expect(
@@ -125,7 +126,8 @@ const swapB = await buildStore(
 
 expect(
   "a topology swap slips past the blinded hash",
-  dumpBlinded(environment, swapA).hash === dumpBlinded(environment, swapB).hash,
+  (await dumpBlinded(environment, swapA)).hash ===
+    (await dumpBlinded(environment, swapB)).hash,
   true
 )
 expect(

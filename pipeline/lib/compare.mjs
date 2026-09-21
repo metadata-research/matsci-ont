@@ -15,7 +15,14 @@
 // ontologies the axioms live inside blank nodes, which is exactly where the
 // weaker tiers are blind.
 
-import { writeFile, mkdir } from "node:fs/promises"
+import { writeFile, mkdir, mkdtemp, rm } from "node:fs/promises"
+import { createReadStream, openSync, closeSync } from "node:fs"
+import { createInterface } from "node:readline"
+import { tmpdir } from "node:os"
+import { spawnSync } from "node:child_process"
+import { Readable } from "node:stream"
+import { pipeline } from "node:stream/promises"
+import { createWriteStream } from "node:fs"
 import { join } from "node:path"
 import { createHash } from "node:crypto"
 import { runJena } from "../../shared/tools.mjs"
@@ -94,14 +101,56 @@ export async function graphCounts(environment, location, workDirectory) {
   return counts
 }
 
-export function dumpBlinded(environment, location) {
-  const dump = runJena(environment, "tdb2.tdbdump", [`--loc=${location}`])
-  if (dump.status !== 0) throw new Error(`tdbdump failed\n${dump.stderr}`)
-  const lines = dump.stdout.split("\n").filter((line) => line.trim() !== "")
-  const blinded = lines.map(blindBlankNodes).sort()
-  return {
-    quads: lines.length,
-    hash: createHash("sha256").update(blinded.join("\n")).digest("hex")
+// Database exports can exceed spawnSync's buffer and Node's string limit.
+// Spool them to disk, blind a line at a time, and use a bounded external sort.
+// The final digest includes newlines and retains duplicate blinded quads.
+function exportToFile(environment, tool, args, path) {
+  const fd = openSync(path, "w")
+  try {
+    const result = runJena(environment, tool, args, {
+      stdio: ["ignore", fd, "pipe"]
+    })
+    if (result.status !== 0) throw new Error(`${tool} failed\n${result.stderr}`)
+  } finally {
+    closeSync(fd)
+  }
+}
+
+export async function dumpBlinded(environment, location) {
+  const work = await mkdtemp(join(tmpdir(), "matsci-ont-compare-"))
+  try {
+    const dumpPath = join(work, "dump.nq")
+    const blindPath = join(work, "blinded.nq")
+    const sortedPath = join(work, "sorted.nq")
+    exportToFile(environment, "tdb2.tdbdump", [`--loc=${location}`], dumpPath)
+    let quads = 0
+    async function* blindedLines() {
+      const lines = createInterface({
+        input: createReadStream(dumpPath),
+        crlfDelay: Infinity
+      })
+      for await (const line of lines) {
+        if (!line.trim()) continue
+        quads += 1
+        yield `${blindBlankNodes(line)}\n`
+      }
+    }
+    await pipeline(Readable.from(blindedLines()), createWriteStream(blindPath))
+    const sorted = spawnSync(
+      "sort",
+      ["-S", "64M", "-T", work, "-o", sortedPath, blindPath],
+      {
+        env: { ...process.env, LC_ALL: "C" },
+        encoding: "utf8"
+      }
+    )
+    if (sorted.error) throw sorted.error
+    if (sorted.status !== 0) throw new Error(`sort failed\n${sorted.stderr}`)
+    const hash = createHash("sha256")
+    for await (const chunk of createReadStream(sortedPath)) hash.update(chunk)
+    return { quads, hash: hash.digest("hex") }
+  } finally {
+    await rm(work, { recursive: true, force: true })
   }
 }
 
@@ -128,14 +177,13 @@ export async function graphsIsomorphic(
     ["b", locationB]
   ]) {
     // tdb2.tdbquery emits Turtle for CONSTRUCT whatever --results says.
-    const result = runJena(environment, "tdb2.tdbquery", [
-      `--loc=${location}`,
-      `--query=${queryFilePath}`
-    ])
-    if (result.status !== 0)
-      throw new Error(`construct failed for ${graph}\n${result.stderr}`)
     const path = join(workDirectory, `${name}.ttl`)
-    await writeFile(path, result.stdout)
+    exportToFile(
+      environment,
+      "tdb2.tdbquery",
+      [`--loc=${location}`, `--query=${queryFilePath}`],
+      path
+    )
     sides.push(path)
   }
 
