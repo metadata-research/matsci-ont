@@ -44,7 +44,14 @@ export const NAMED_QUERY_TIMEOUT_MS = 35000
 export const NAMED_QUERY_MAX_BYTES = 16 * 1024 * 1024
 export const MAX_ANSWER_BYTES = 2 * 1024 * 1024
 
-export async function select(name, substitutions) {
+export async function select(
+  name,
+  substitutions,
+  {
+    signal = AbortSignal.timeout(NAMED_QUERY_TIMEOUT_MS),
+    maxBytes = NAMED_QUERY_MAX_BYTES
+  } = {}
+) {
   const query = await namedQuery(name, substitutions)
   let response
   try {
@@ -55,7 +62,7 @@ export async function select(name, substitutions) {
         Accept: "application/sparql-results+json"
       },
       body: query,
-      signal: AbortSignal.timeout(NAMED_QUERY_TIMEOUT_MS)
+      signal
     })
   } catch (error) {
     throw new Error(
@@ -65,14 +72,12 @@ export async function select(name, substitutions) {
     )
   }
   if (!response.ok) {
+    const { body } = await readCapped(response, Math.min(maxBytes, 1024))
     throw new Error(
-      `query ${name} answered HTTP ${response.status}: ${(await response.text()).slice(0, 300)}`
+      `query ${name} answered HTTP ${response.status}: ${body.slice(0, 300)}`
     )
   }
-  const { body: text, exceeded } = await readCapped(
-    response,
-    NAMED_QUERY_MAX_BYTES
-  )
+  const { body: text, exceeded } = await readCapped(response, maxBytes)
   if (exceeded)
     throw new Error(
       `query ${name} answered with more than this service will assemble`

@@ -198,6 +198,14 @@ a service drafting a definition can show a reader what published
 ontologies already say. [The grounding guide](docs/guide/grounding.md)
 gives the parameters and the ranking, and what the route never returns.
 
+`GET /candidates?q=` finds labelled classes and concepts, including entries
+without definitions, by exact label with a separate result cap for each
+source. Explicit `mode=similar` explores non-exact whole-word label matches;
+it does not assert that the results represent equivalent or nearest concepts.
+`GET /hierarchy?source=...&iri=...` returns that source's direct asserted
+named parents. [The hierarchy preview guide](docs/guide/hierarchy-preview.md)
+describes these compact JSON contracts, source selection and bounds.
+
 ## Comparing two builds
 
 `pnpm verify:full` builds the store a second time and compares the two in

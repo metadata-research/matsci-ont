@@ -1,0 +1,25 @@
+# Only direct assertions in the selected source, retaining SKOS direction.
+PREFIX ont: <@@ONT@@>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+SELECT DISTINCT ?iri ?label ?predicate ?direction WHERE {
+  {
+    GRAPH <@@GRAPH@@> {
+      <@@IRI@@> ?predicate ?iri .
+      VALUES ?predicate { rdfs:subClassOf skos:broader }
+    }
+    BIND("outgoing" AS ?direction)
+  } UNION {
+    GRAPH <@@GRAPH@@> { ?iri skos:narrower <@@IRI@@> }
+    BIND(skos:narrower AS ?predicate)
+    BIND("incoming" AS ?direction)
+  }
+  FILTER(isIRI(?iri))
+  OPTIONAL {
+    GRAPH <@@DEFS@@> {
+      ?entry ont:entity ?iri ; ont:sourceKey @@KEY@@ ; ont:label ?label
+    }
+  }
+}
+ORDER BY ?iri ?predicate ?direction
+LIMIT 51

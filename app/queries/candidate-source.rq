@@ -1,0 +1,21 @@
+# One capped branch per allowed source, composed into candidates.rq.
+# Definitions are deliberately irrelevant: label-only concepts qualify.
+SELECT DISTINCT ?key ?iri ?label ?tier WHERE {
+  GRAPH <@@DEFS@@> {
+    ?entry ont:entity ?iri ; ont:sourceKey @@KEY@@ ; ont:label ?label .
+  }
+  FILTER EXISTS {
+    GRAPH <@@GRAPH@@> { ?iri a ?type }
+    VALUES ?type { owl:Class rdfs:Class skos:Concept }
+  }
+  BIND(@@KEY@@ AS ?key)
+  # Match JS trim's surrounding whitespace without altering chemical names.
+  BIND(REPLACE(STR(?label), "^[\\s\\p{Z}\\x{FEFF}]+|[\\s\\p{Z}\\x{FEFF}]+$", "") AS ?trimmedLabel)
+  BIND(IF(LCASE(?trimmedLabel) = LCASE(@@TEXT@@), 0, 1) AS ?tier)
+  # Modes are disjoint and filtered before this source's result cap.
+  FILTER(?tier = @@TIER@@)
+  FILTER(?tier = 0 || REGEX(STR(?label),
+    CONCAT("(^|[^\\p{L}\\p{N}_])", @@REGEX@@, "($|[^\\p{L}\\p{N}_])"), "i"))
+}
+ORDER BY ?tier LCASE(STR(?label)) ?iri
+LIMIT @@LIMIT@@

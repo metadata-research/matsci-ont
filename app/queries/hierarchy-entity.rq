@@ -1,0 +1,17 @@
+# A hierarchy selection must be an indexed class/concept in this source.
+PREFIX ont: <@@ONT@@>
+PREFIX owl: <http://www.w3.org/2002/07/owl#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+SELECT DISTINCT ?label (EXISTS {
+  GRAPH <@@GRAPH@@> { <@@IRI@@> rdfs:subClassOf ?expression . FILTER(isBlank(?expression)) }
+} AS ?anonymous) WHERE {
+  GRAPH <@@DEFS@@> {
+    ?entry ont:entity <@@IRI@@> ; ont:sourceKey @@KEY@@ ; ont:label ?label .
+  }
+  FILTER EXISTS {
+    GRAPH <@@GRAPH@@> { <@@IRI@@> a ?type }
+    VALUES ?type { owl:Class rdfs:Class skos:Concept }
+  }
+}
+LIMIT 2

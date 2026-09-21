@@ -13,6 +13,7 @@ import { searchPage } from "./pages/search.mjs"
 import { graphJson, graphPage } from "./pages/graph.mjs"
 import { errorPage } from "./lib/html.mjs"
 import { grounding } from "./data.mjs"
+import { findCandidates, getHierarchy } from "./preview.mjs"
 import { RejectedInput } from "./lib/terms.mjs"
 import { handleMcpRequest, MAX_REQUEST_BYTES } from "./mcp.mjs"
 
@@ -20,7 +21,8 @@ const require = createRequire(import.meta.url)
 
 // The routes a program calls rather than reads. They answer JSON on every
 // path, including refusal.
-const JSON_ROUTES = /^\/(grounding$|graph\/[a-z0-9-]+\.json$)/
+const JSON_ROUTES =
+  /^\/(grounding$|candidates$|hierarchy$|graph\/[a-z0-9-]+\.json$)/
 
 export const DEFAULT_APP_PORT = Number(process.env.MATSCI_ONT_APP_PORT ?? 3100)
 
@@ -54,6 +56,28 @@ const ASSETS = {
 async function handle(url) {
   if (url.pathname === "/") {
     return { status: 200, type: "text/html", body: await cataloguePage() }
+  }
+  if (url.pathname === "/candidates") {
+    const limit = url.searchParams.get("limitPerSource")
+    const answer = await findCandidates(url.searchParams.get("q"), {
+      limitPerSource: limit === null ? undefined : Number(limit),
+      mode: url.searchParams.get("mode") ?? "exact"
+    })
+    return {
+      status: 200,
+      type: "application/json",
+      body: JSON.stringify(answer)
+    }
+  }
+  if (url.pathname === "/hierarchy") {
+    const answer = await getHierarchy(url.searchParams.get("iri"), {
+      source: url.searchParams.get("source")
+    })
+    return {
+      status: 200,
+      type: "application/json",
+      body: JSON.stringify(answer)
+    }
   }
   // The grounding route: definition text for a term, as JSON, for a
   // service that will show it to a reader. Every entry names its source
@@ -174,6 +198,15 @@ export function startApp(port = DEFAULT_APP_PORT) {
     }
 
     if (request.method !== "GET" && request.method !== "HEAD") {
+      if (JSON_ROUTES.test(request.url?.split("?")[0] ?? "")) {
+        response
+          .writeHead(405, {
+            "Content-Type": "application/json",
+            Allow: "GET, HEAD"
+          })
+          .end(JSON.stringify({ error: "This endpoint is read-only." }))
+        return
+      }
       response.writeHead(405, { "Content-Type": "text/plain" }).end("read-only")
       return
     }

@@ -1,0 +1,13 @@
+# Preview metadata does not need whole-index entry counts.
+PREFIX ont: <@@ONT@@>
+PREFIX dcterms: <http://purl.org/dc/terms/>
+SELECT ?key ?title ?version ?license ?graph WHERE {
+  GRAPH <@@CATALOG@@> {
+    ?source ont:sourceKey ?key ; dcterms:title ?title ;
+      dcterms:license ?license ; ont:namedGraph ?graph ; ont:republishable true .
+    OPTIONAL { ?source dcterms:hasVersion ?version }
+    FILTER NOT EXISTS { ?source ont:mirrorOf ?mirror }
+  }
+}
+ORDER BY ?key
+LIMIT 33

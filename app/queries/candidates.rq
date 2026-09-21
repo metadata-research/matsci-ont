@@ -1,0 +1,10 @@
+# Each UNION branch has its own cap so large ontologies cannot crowd out
+# a match from another source. One request shares the query deadline.
+PREFIX ont: <@@ONT@@>
+PREFIX owl: <http://www.w3.org/2002/07/owl#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+SELECT ?key ?iri ?label ?tier WHERE {
+  @@BRANCHES@@
+}
+ORDER BY ?key ?tier LCASE(STR(?label)) ?iri
