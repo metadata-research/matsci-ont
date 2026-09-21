@@ -1,0 +1,16 @@
+# Large source pages start with current root classes, not every descendant.
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+PREFIX owl: <http://www.w3.org/2002/07/owl#>
+PREFIX ont: <@@ONT@@>
+SELECT DISTINCT ?s ?label WHERE {
+  GRAPH <@@DEFS@@> { ?entry ont:entity ?s ; ont:sourceKey @@KEY@@ ; ont:label ?label }
+  GRAPH <@@GRAPH@@> {
+    ?s a ?type .
+    VALUES ?type { owl:Class rdfs:Class skos:Concept }
+    FILTER NOT EXISTS { ?s owl:deprecated true }
+    FILTER NOT EXISTS { ?s rdfs:subClassOf|skos:broader ?parent . FILTER(isIRI(?parent)) }
+  }
+}
+ORDER BY ?label ?s
+LIMIT 101

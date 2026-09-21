@@ -26,5 +26,5 @@ WHERE {
     BIND(EXISTS { GRAPH <@@INFGRAPH@@> { ?anc rdfs:subClassOf|skos:broader ?parent } }
          && <@@GRAPH@@> != <@@INFGRAPH@@> AS ?inferred)
   }
-  OPTIONAL { GRAPH <@@DEFS@@> { ?anc ont:label ?label } }
+  OPTIONAL { GRAPH <@@DEFS@@> { ?entry ont:entity ?anc ; ont:sourceKey @@KEY@@ ; ont:label ?label } }
 }

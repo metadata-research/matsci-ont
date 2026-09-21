@@ -101,9 +101,10 @@ the manifest and the loaded content:
 
 - **catalog**, one resource per source: title, canonical IRI, named graph,
   version, licence, download URL, digest, pinned modules, and triple count.
-- **definitions**, one entry per named class, property or concept that
-  carries a label: the chosen label and definition, which property each came
-  from, and the source key, version and licence.
+- **definitions**, one record per source and labelled entity: the publisher
+  entity IRI, chosen label and definition, which property each came from,
+  and that source's key, version and licence. A shared entity IRI can have
+  several independently attributed descriptions.
 - **inferred/{key}**, one per reasoned source with a nonempty result: the
   class placements reasoning added. See below.
 
@@ -111,10 +112,15 @@ The catalogue also records what reasoning did for each source: the reasoner,
 the number of pairs it added, the number it entailed in total, the inferred
 graph, or the reason the source was not reasoned.
 
-Entities keep the IRI their publisher minted. This index states its own
-properties about them and never restates or re-licenses another publisher's
-vocabulary. Only the catalogue resources and the small vocabulary under
-`{base}vocab#` are minted here, where the base is `MATSCI_ONT_BASE_URL`.
+Entities keep the IRI their publisher minted. The derived index does not
+re-license a publisher's content. Catalogue resources, description records
+and the small vocabulary under `{base}vocab#` are minted here, where the
+base is `MATSCI_ONT_BASE_URL`. Description records use
+`{base}entries/{sourceKey}/{sha256(entityIri)}` and point to the publisher
+IRI with `ont:entity`. All label, definition, version and licence joins must
+use the same record. This prevents a shared ChEBI/PMD entity from returning
+ChEBI text attributed to a PMD release. Rebuild the store when adopting this
+index format; deploy the matching application and store together.
 
 Label precedence is `skos:prefLabel` then `rdfs:label`. Definition
 precedence is `skos:definition`, then IAO 0000115, then the EMMO
@@ -204,6 +210,12 @@ labels are minted per parser run:
 | 2    | blank-node-blinded sorted hash     | a changed value anywhere, including inside a blank node |
 | 3    | per-graph `rdfcompare` isomorphism | everything above, plus blank node topology              |
 
+Exports are spooled to temporary files. Tier 2 blinds one line at a time
+and sorts on disk with GNU `sort` (64 MiB sort buffer); it does not assemble
+an entire database dump as a JavaScript string. Tier 3 still needs memory
+for Jena's graph comparison. Allow temporary disk space for several exports.
+A publication build is rebuilt with the same publication exclusions.
+
 A comparison run reuses the mirrored documents the first build fetched. If
 the store predates the documents now in the cache, the check reports the
 store as stale rather than as non-deterministic.
@@ -245,3 +257,17 @@ MatSci-SAM hosts. The Jena tools and a Java 21 runtime are pinned in
 digest verified before extraction. Jena 6.2.0 requires Java 21. The Jena
 version matches, and the Fuseki tarball digest equals, the reviewed host
 pins in `matsci-ops/deploy/runtime-versions.env`.
+
+## ChEBI CORE
+
+The `chebi` source pins archived release 254 of ChEBI CORE, published under
+[CC BY 4.0](https://www.ebi.ac.uk/chebi/about). CORE retains definitions and
+hierarchy; LITE omits definitions and FULL adds synonyms and curated cross
+references. This pin uses the asserted hierarchy without HermiT reasoning.
+The source contributes 3,382,033 triples and 218,444 labelled description
+records. The publisher IRIs remain unchanged.
+
+Large-source browsing starts with roots and bounded graph overviews. Full
+content remains available through search, entity lookup and SPARQL. See the
+[browsing guide](docs/guide/browsing.md) and the
+[release evidence](docs/research/chebi-core-254-2026-09-19.md).

@@ -38,39 +38,47 @@ const MAPPING_PREDICATES = new Set([
 // node whose step upward the reasoner supplied, so a reader can see which
 // link in the chain is inferred rather than being told the page as a whole
 // contains inference.
-export function hierarchyChain(ancestry, iri, showInferred) {
+export function hierarchyChain(ancestry, iri, showInferred, source) {
   return ancestry.chain
     .map((node, index) => {
       const text =
         node.iri === iri
           ? `<strong>${escape(node.label ?? localName(node.iri))}</strong>`
-          : termLink(node.iri, node.label, showInferred) +
-            (node.external ? ' <span class="mark">external</span>' : "")
+          : termLink(
+              node.iri,
+              node.label,
+              showInferred,
+              node.external ? undefined : source
+            ) + (node.external ? ' <span class="mark">external</span>' : "")
       const mark = node.inferredEdge ? ` ${INFERRED_MARK}` : ""
       return `<div style="padding-left:${index * 1.25}rem">↳ ${text}${mark}</div>`
     })
     .join("\n")
 }
 
-export function secondaryParents(ancestry, showInferred) {
+export function secondaryParents(ancestry, showInferred, source) {
   if (ancestry.secondary.length === 0) return ""
   return `<p>Also below: ${ancestry.secondary
     .map(
       (node) =>
-        termLink(node.iri, node.label, showInferred) +
-        (node.inferredEdge ? ` ${INFERRED_MARK}` : "")
+        termLink(
+          node.iri,
+          node.label,
+          showInferred,
+          node.external ? undefined : source
+        ) + (node.inferredEdge ? ` ${INFERRED_MARK}` : "")
     )
     .join(", ")}</p>`
 }
 
 const CHILD_LIMIT = 25
 
-export function childrenList(childRows, showInferred) {
+export function childrenList(childRows, showInferred, source) {
   const html = childRows
     .slice(0, CHILD_LIMIT)
     .map(
       (row) =>
-        `<li>${termLink(row.child.value, row.label?.value, showInferred)}${
+        `<li>${termLink(row.child.value, row.label?.value, showInferred, row.label ? source : undefined)}${
           row.inferred?.value === "true"
             ? ' <span class="mark inferred">inferred</span>'
             : ""

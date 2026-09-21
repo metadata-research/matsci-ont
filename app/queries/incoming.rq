@@ -9,7 +9,15 @@ SELECT ?g ?s ?p ?label WHERE {
   # reasoner derived, which would otherwise appear here unmarked and
   # contradict the children list on the same page.
   FILTER(!STRSTARTS(STR(?g), "@@INFPREFIX@@"))
-  OPTIONAL { GRAPH <@@DEFS@@> { ?s ont:label ?label } }
+  # A shared entity has one description per source. Use only the label
+  # owned by the graph asserting this reference, without dropping an
+  # incoming triple whose source supplies no indexed label.
+  OPTIONAL {
+    GRAPH <@@CATALOG@@> { ?source ont:namedGraph ?g }
+    GRAPH <@@DEFS@@> {
+      ?entry ont:entity ?s ; ont:fromSource ?source ; ont:label ?label
+    }
+  }
 }
-ORDER BY ?p ?s
+ORDER BY ?p ?s ?g
 LIMIT 51

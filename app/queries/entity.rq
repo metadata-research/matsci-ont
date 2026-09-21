@@ -27,5 +27,6 @@ SELECT ?g ?s ?p ?o WHERE {
   # says; a placement the reasoner derived belongs to the hierarchy card,
   # where it is marked as inferred rather than shown as source data.
   FILTER(!STRSTARTS(STR(?g), "@@INFPREFIX@@"))
+  FILTER(?g != <@@DEFS@@> && ?g != <@@CATALOG@@>)
 }
 ORDER BY ?g ?p ?o

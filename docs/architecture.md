@@ -84,3 +84,23 @@ be tested without Java, it belongs in the pure set: the manifest rules had
 no test at all for as long as they were unreachable, and `literal()` had
 none while every suite that depended on it stayed green with its escaping
 removed.
+
+## Description identity
+
+The definitions graph uses one derived record per `(source key, publisher
+entity IRI)`. `ont:entity` links that record to the entity; the label,
+definition, their source properties, licence and version are properties of
+the record. A shared entity therefore has multiple atomic descriptions.
+Joining metadata directly on the entity mixes releases and licences.
+
+Application queries follow `ont:entity`, and entity pages and MCP accept a
+source selection. The asserted panels read only the selected source graph;
+the index and inferred graphs cannot masquerade as publisher assertions.
+`pipeline/test-source-context.mjs` builds two disagreeing source snapshots
+and verifies search, grounding, selection and rendered navigation against
+a real temporary store, including a deployment path prefix.
+
+ChEBI's size requires bounding work before rendering. Large-source graph
+queries expand a small frontier one level at a time, then fetch only edges
+between displayed nodes. A LIMIT on an unbounded transitive query does not
+bound the query's work. The full snapshot remains queryable.

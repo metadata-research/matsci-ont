@@ -11,8 +11,8 @@ export function baseUrl() {
   return base.endsWith("/") ? base : `${base}/`
 }
 
-// The small vocabulary this project mints. Everything else in the store
-// keeps the IRI its publisher minted.
+// The small vocabulary for derived catalogue and description records.
+// Source entities keep the IRI their publisher minted.
 export function vocabularyIri() {
   return `${baseUrl()}vocab#`
 }

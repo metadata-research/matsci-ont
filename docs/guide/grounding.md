@@ -65,3 +65,18 @@ exists to serve MatSci-SAM, and returning its own vocabulary to it would be
 circular. `includeMirror=1` lifts that, but it cannot lift the clearance
 rule, so while the MatSci-SAM licence is undeclared the option adds
 nothing and the answer says so in a `note`.
+
+## ChEBI and source provenance
+
+ChEBI CORE release 254 supplies chemical definitions under CC BY 4.0.
+`/grounding?q=water&sources=chebi&limit=1` returns the publisher's definition
+of `CHEBI:15377`. Each result is a single source's description: its text,
+IRI, source key, version and licence remain together even when PMD describes
+the same IRI. Never borrow another result's version or licence.
+
+Credit the source and version and link the entity and the
+[CC BY 4.0 licence](https://creativecommons.org/licenses/by/4.0/) when
+presenting a ChEBI definition. Definitions are selected from the source
+snapshot without rewriting their text. Synonym search is outside this CORE
+integration; the publisher's LITE distribution cannot replace CORE because
+it omits definitions.

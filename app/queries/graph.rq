@@ -8,7 +8,7 @@ PREFIX owl:  <http://www.w3.org/2002/07/owl#>
 PREFIX ont:  <@@ONT@@>
 SELECT ?kind ?a ?b ?label WHERE {
   {
-    GRAPH <@@DEFS@@> { ?a ont:sourceKey @@KEY@@ ; ont:label ?label }
+    GRAPH <@@DEFS@@> { ?entry ont:entity ?a ; ont:sourceKey @@KEY@@ ; ont:label ?label }
     GRAPH <@@GRAPH@@> { ?a a ?type }
     VALUES ?type { owl:Class rdfs:Class skos:Concept }
     BIND("node" AS ?kind)
@@ -21,7 +21,7 @@ SELECT ?kind ?a ?b ?label WHERE {
       ?prop a owl:ObjectProperty ; rdfs:domain ?a ; rdfs:range ?b .
     }
     FILTER(isIRI(?a) && isIRI(?b))
-    OPTIONAL { GRAPH <@@DEFS@@> { ?prop ont:label ?label } }
+    OPTIONAL { GRAPH <@@DEFS@@> { ?propEntry ont:entity ?prop ; ont:sourceKey @@KEY@@ ; ont:label ?label } }
     BIND("prop" AS ?kind)
   }
 }

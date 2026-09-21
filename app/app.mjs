@@ -81,7 +81,11 @@ async function handle(url) {
   }
   if (url.pathname === "/entity") {
     const iri = url.searchParams.get("iri") ?? ""
-    const page = await entityPage(iri, url.searchParams.get("inferred") === "1")
+    const page = await entityPage(
+      iri,
+      url.searchParams.get("inferred") === "1",
+      url.searchParams.get("source") ?? undefined
+    )
     return { status: page.status, type: "text/html", body: page.html }
   }
   const sourceMatch = url.pathname.match(/^\/source\/([a-z0-9-]{1,64})$/)

@@ -20,6 +20,16 @@
       "iri": "https://w3id.org/emmo#EMMO_4207e895_8b83_4318_996a_72cfb32acd94",
       "source": "emmo",
       "expectLabel": "Material"
+    },
+    {
+      "iri": "http://purl.obolibrary.org/obo/CHEBI_15377",
+      "source": "chebi",
+      "expectLabel": "water"
+    },
+    {
+      "iri": "http://purl.obolibrary.org/obo/CHEBI_18248",
+      "source": "chebi",
+      "expectLabel": "iron atom"
     }
   ],
   "reasoning": {
@@ -42,7 +52,7 @@
         "entailedPairs": 1924
       }
     },
-    "skipped": ["nist-imrr"]
+    "skipped": ["nist-imrr", "chebi"]
   },
   "browse": {
     "comment": "Pages that must render particular content, chosen so that a silent regression in one of the harder paths shows up: subclass children, a SKOS-only tree, definition precedence, axiom verbalization, and the node cap on the graph export.",
@@ -84,5 +94,12 @@
     "limit": 8,
     "expectFirst": "energy",
     "mirrorTerm": "sintering"
+  },
+  "chebi": {
+    "triples": 3382033,
+    "entries": 218444,
+    "water": "http://purl.obolibrary.org/obo/CHEBI_15377",
+    "waterDefinition": "An oxygen hydride consisting of an oxygen atom that is covalently bonded to two hydrogen atoms",
+    "shared": "http://purl.obolibrary.org/obo/CHEBI_18248"
   }
 }

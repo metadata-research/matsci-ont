@@ -15,7 +15,7 @@
 PREFIX ont: <@@ONT@@>
 SELECT ?iri ?label ?definition ?key ?version ?license ?tier WHERE {
   GRAPH <@@DEFS@@> {
-    ?iri ont:label ?label ;
+    ?entry ont:entity ?iri ; ont:label ?label ;
          ont:definition ?definition ;
          ont:sourceKey ?key ;
          ont:sourceVersion ?version ;

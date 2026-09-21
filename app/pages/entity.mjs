@@ -5,11 +5,13 @@
 // is, where it sits, what it means, then the detail and finally the raw
 // triples the rest was derived from.
 
-import { checkIri, safeHref } from "../lib/terms.mjs"
+import { checkIri, checkKey, safeHref, RejectedInput } from "../lib/terms.mjs"
+import { descriptionsFrom, chooseDescription } from "../lib/descriptions.mjs"
 import { select } from "../lib/store.mjs"
 import {
   base,
   escape,
+  licenseLink,
   attr,
   layout,
   errorPage,
@@ -18,7 +20,7 @@ import {
 } from "../lib/html.mjs"
 import { buildAncestry } from "../lib/hierarchy.mjs"
 import { verbalize } from "../lib/axioms.mjs"
-import { common, graphs, ONT } from "../lib/substitutions.mjs"
+import { common } from "../lib/substitutions.mjs"
 import {
   sourceByKey,
   sourceByGraph,
@@ -38,9 +40,10 @@ import {
   INCOMING_LIMIT
 } from "./panels.mjs"
 
-export async function entityPage(iri, inferred) {
+export async function entityPage(iri, inferred, sourceKey) {
   try {
     checkIri(iri)
+    if (sourceKey !== undefined) checkKey(sourceKey)
   } catch {
     return {
       status: 404,
@@ -48,7 +51,7 @@ export async function entityPage(iri, inferred) {
     }
   }
 
-  const rows = await select("entity", { ...common, IRI: iri })
+  let rows = await select("entity", { ...common, IRI: iri })
   if (rows.length === 0) {
     return {
       status: 404,
@@ -56,18 +59,35 @@ export async function entityPage(iri, inferred) {
     }
   }
 
-  // The definitions index is this project's own view of the entity: which
-  // source it was indexed from, and the label and definition chosen by the
-  // precedence in the pipeline.
-  const definitionRows = rows.filter(
-    (row) => row.g.value === graphs.definitions
+  const descriptions = descriptionsFrom(
+    await select("descriptions", { ...common, IRI: iri })
   )
-  const field = (name) =>
-    definitionRows.find((row) => row.p.value === `${ONT}${name}`)?.o.value
+  const entry = descriptions.length
+    ? chooseDescription(descriptions, sourceKey)
+    : undefined
+  const field = (name) => entry?.[name]
   const key = field("sourceKey")
   const source = key
     ? await sourceByKey(key)
-    : await sourceByGraph(rows[0].g.value)
+    : sourceKey !== undefined
+      ? await sourceByKey(sourceKey)
+      : await sourceByGraph(rows[0].g.value)
+  if (
+    sourceKey !== undefined &&
+    (!source || !rows.some((row) => row.g.value === source.graphIri.value))
+  )
+    throw new RejectedInput("This source does not describe the entity.")
+  if (source) rows = rows.filter((row) => row.g.value === source.graphIri.value)
+  const alternatives =
+    descriptions.length > 1
+      ? `<p class="source-choices">Descriptions of this entity: ${descriptions
+          .map((item) =>
+            item.sourceKey === key
+              ? `<strong>${escape(item.sourceKey)}</strong>`
+              : `<a href="${attr(entityUrl(iri, false, item.sourceKey))}">${escape(item.sourceKey)}</a>`
+          )
+          .join(" · ")}</p>`
+      : ""
 
   const inferredAvailable = Boolean(key) && (await hasInferred(key))
   const showInferred = Boolean(inferred && inferredAvailable)
@@ -85,9 +105,9 @@ export async function entityPage(iri, inferred) {
   const ancestry = buildAncestry(ancestryRows, iri)
   const { axioms, disjoint, fallbacks } = verbalize(rows, iri)
 
-  const chainHtml = hierarchyChain(ancestry, iri, showInferred)
-  const secondaryHtml = secondaryParents(ancestry, showInferred)
-  const children = childrenList(childRows, showInferred)
+  const chainHtml = hierarchyChain(ancestry, iri, showInferred, key)
+  const secondaryHtml = secondaryParents(ancestry, showInferred, key)
+  const children = childrenList(childRows, showInferred, key)
   const annotationsHtml = annotationsTable(rows, iri)
   const axiomsHtml = axiomsList(axioms, disjoint, showInferred)
   const mappingsHtml = mappingsList(rows, iri)
@@ -95,13 +115,11 @@ export async function entityPage(iri, inferred) {
   const rawHtml = rawTable(rows)
 
   const definition = field("definition")
-  const definitionProperty = definitionRows.find(
-    (row) => row.p.value === `${ONT}definitionProperty`
-  )?.o.value
+  const definitionProperty = field("definitionProperty")
 
   const label = field("label") ?? localName(iri)
   const toggleHtml = inferredAvailable
-    ? `<p><a href="${attr(entityUrl(iri, !showInferred))}">${
+    ? `<p><a href="${attr(entityUrl(iri, !showInferred, key))}">${
         showInferred
           ? "Show only the asserted hierarchy"
           : "Show the inferred hierarchy"
@@ -123,10 +141,11 @@ ${
         source
           ? `From <a href="${base}/source/${attr(source.key.value)}">${escape(source.title.value)}</a>${
               source.version ? `, version ${escape(source.version.value)}` : ""
-            }, license ${escape(source.license.value)}.`
+            }, license ${licenseLink(source.license.value)}.`
           : "Not indexed from a catalogued source."
       }</p>
-<p><code>${escape(iri)}</code></p>
+<p><code>${escape(iri)}</code>${safeHref(iri) ? ` · <a href="${attr(iri)}" rel="noopener">Publisher record</a>` : ""}</p>
+${alternatives}
 ${toggleHtml}
 <h2>Hierarchy</h2>
 <div class="hierarchy">${chainHtml || "<p>No named ancestors in the store.</p>"}</div>

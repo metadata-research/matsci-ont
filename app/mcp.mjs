@@ -18,8 +18,8 @@ import {
 } from "./data.mjs"
 
 export const INSTRUCTIONS = `MatSci-ONT serves versioned snapshots of published materials-science
-ontologies: PMD Core Ontology, CHAMEO, the Materials Design Ontology, and
-the NIST Materials Data Vocabulary. Every entity keeps the identifier its
+ontologies, including ChEBI CORE, EMMO, PMD Core Ontology, CHAMEO, the
+Materials Design Ontology, and the NIST Materials Data Vocabulary. Every entity keeps the identifier its
 publisher minted, and this service never edits or republishes an ontology
 beyond serving what its publisher released.
 
@@ -29,6 +29,10 @@ list_sources, get_source, get_entity and find_entities return the source
 and its licence with the content. sparql_query does not: a query chooses
 its own columns, so name the graph a result came from if the answer needs
 crediting.
+
+An entity may have descriptions in several sources. get_entity accepts a
+source key and returns descriptions with their own attribution. Do not combine
+one description's text with another description's version or licence.
 
 Some sources are mirrors of a living dataset published elsewhere, marked
 with mirrorOf and the date its publisher last projected it. A mirror is
@@ -112,6 +116,23 @@ const entityShape = {
       mirroredFrom: z.string().optional()
     })
     .optional(),
+  descriptions: z
+    .array(
+      z.object({
+        label: z.string(),
+        definition: z.string().optional(),
+        definitionProperty: z.string().optional(),
+        source: z.object({
+          key: z.string(),
+          version: z.string().optional(),
+          license: z.string(),
+          clearedForPublication: z.boolean().optional(),
+          mirrorOf: z.string().optional(),
+          mirroredFrom: z.string().optional()
+        })
+      })
+    )
+    .optional(),
   triples: z
     .array(
       z.object({
@@ -194,12 +215,18 @@ export function buildMcpServer() {
           .string()
           .describe(
             "Absolute http or https IRI of a class, property or concept"
+          ),
+        source: z
+          .string()
+          .optional()
+          .describe(
+            "Source key for the description and asserted triples; omitted selects the first source key and returns all descriptions."
           )
       },
       outputSchema: entityShape,
       annotations: { readOnlyHint: true, idempotentHint: true }
     },
-    async ({ iri }) => answering(() => getEntity(iri))
+    async ({ iri, source }) => answering(() => getEntity(iri, { source }))
   )
 
   server.registerTool(

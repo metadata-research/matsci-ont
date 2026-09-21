@@ -3,8 +3,8 @@
 # vocabulary publishes no skos:*Match mappings.
 SELECT (COUNT(DISTINCT ?term) AS ?terms) (COUNT(*) AS ?pairs) WHERE {
   GRAPH <@@DEFS@@> {
-    ?term <@@ONT@@sourceKey> "@@VOCABKEY@@" ; <@@ONT@@label> ?label .
-    ?class <@@ONT@@label> ?classLabel ; <@@ONT@@sourceKey> ?other .
+    ?termEntry <@@ONT@@entity> ?term ; <@@ONT@@sourceKey> "@@VOCABKEY@@" ; <@@ONT@@label> ?label .
+    ?classEntry <@@ONT@@entity> ?class ; <@@ONT@@label> ?classLabel ; <@@ONT@@sourceKey> ?other .
     FILTER(?other != "@@VOCABKEY@@")
     FILTER(LCASE(STR(?label)) = LCASE(STR(?classLabel)))
   }

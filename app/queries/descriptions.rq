@@ -1,0 +1,11 @@
+# One atomic description per source for the requested publisher entity.
+PREFIX ont: <@@ONT@@>
+SELECT ?key ?label ?definition ?definitionProperty ?version ?license WHERE {
+  GRAPH <@@DEFS@@> {
+    ?entry ont:entity <@@IRI@@> ; ont:sourceKey ?key ; ont:label ?label ;
+           ont:sourceVersion ?version ; ont:license ?license .
+    OPTIONAL { ?entry ont:definition ?definition }
+    OPTIONAL { ?entry ont:definitionProperty ?definitionProperty }
+  }
+}
+ORDER BY ?key

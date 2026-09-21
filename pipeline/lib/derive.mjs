@@ -16,6 +16,7 @@
 // rather than restating or re-licensing their vocabulary.
 
 import { writeFile } from "node:fs/promises"
+import { createHash } from "node:crypto"
 import { runJena } from "../../shared/tools.mjs"
 import { baseUrl } from "../../shared/vocabulary.mjs"
 
@@ -291,7 +292,12 @@ export function definitionsTurtle(
         ? chooseMirrorDefinition(revisions.get(subject))
         : null
 
-      lines.push(`<${subject}>`)
+      // The same publisher IRI may be described by several sources. A
+      // record, not the entity, owns this particular definition and its
+      // attribution; otherwise SPARQL joins mix text/version/licence values.
+      const digest = createHash("sha256").update(subject).digest("hex")
+      lines.push(`<${base}entries/${entry.key}/${digest}>`)
+      lines.push(`    ont:entity <${subject}> ;`)
       lines.push(`    ont:fromSource ${source} ;`)
       lines.push(`    ont:sourceKey "${escapeLiteral(entry.key)}" ;`)
       // Version and licence are repeated on every entry so that one query

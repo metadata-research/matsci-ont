@@ -11,14 +11,24 @@ export function escape(value) {
 
 export const attr = escape
 
+export function licenseLink(license) {
+  const url =
+    license === "CC-BY-4.0"
+      ? "https://creativecommons.org/licenses/by/4.0/"
+      : undefined
+  return url
+    ? `<a href="${url}" rel="license">${escape(license)}</a>`
+    : escape(license)
+}
+
 // The path this site is served under, empty when it owns the root. A proxy
 // strips the prefix before a request arrives, so it reaches only the links
 // and asset URLs written here, never the routes in app.mjs. A trailing slash
 // is dropped, because every URL below adds its own.
 export const base = (process.env.MATSCI_ONT_BASE_PATH ?? "").replace(/\/+$/, "")
 
-export function entityUrl(iri, inferred) {
-  return `${base}/entity?iri=${encodeURIComponent(iri)}${inferred ? "&inferred=1" : ""}`
+export function entityUrl(iri, inferred, source) {
+  return `${base}/entity?iri=${encodeURIComponent(iri)}${source ? `&source=${encodeURIComponent(source)}` : ""}${inferred ? "&inferred=1" : ""}`
 }
 
 // The readable tail of an IRI. A trailing slash is dropped first, so a
@@ -30,8 +40,8 @@ export function localName(iri) {
   return cut >= 0 && cut < trimmed.length - 1 ? trimmed.slice(cut + 1) : trimmed
 }
 
-export function termLink(iri, label, inferred) {
-  return `<a href="${attr(entityUrl(iri, inferred))}" title="${attr(iri)}">${escape(label ?? localName(iri))}</a>`
+export function termLink(iri, label, inferred, source) {
+  return `<a href="${attr(entityUrl(iri, inferred, source))}" title="${attr(iri)}">${escape(label ?? localName(iri))}</a>`
 }
 
 export function layout(title, body) {

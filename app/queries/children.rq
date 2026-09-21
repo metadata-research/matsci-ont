@@ -13,7 +13,7 @@ SELECT DISTINCT ?child ?label ?inferred WHERE {
   }
   FILTER(isIRI(?child))
   FILTER(?g IN (<@@GRAPH@@>, <@@INFGRAPH@@>))
-  OPTIONAL { GRAPH <@@DEFS@@> { ?child ont:label ?label } }
+  OPTIONAL { GRAPH <@@DEFS@@> { ?entry ont:entity ?child ; ont:sourceKey @@KEY@@ ; ont:label ?label } }
 }
 ORDER BY ?label ?child
 LIMIT 26

@@ -8,16 +8,19 @@
 import { join } from "node:path"
 import { Client } from "@modelcontextprotocol/sdk/client/index.js"
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js"
-import { readdir } from "node:fs/promises"
-import { ROOT, MANIFEST_DIR } from "../shared/paths.mjs"
+import { readFile } from "node:fs/promises"
+import { ROOT } from "../shared/paths.mjs"
 import { startFuseki, stopFuseki } from "../shared/fuseki.mjs"
 
 const PORT = 3198
-// The store is a function of the manifest, so the number of sources the
-// endpoint must list is the number of manifest entries, not a literal that
-// silently goes stale when a source is added.
-const expectedSources = (await readdir(MANIFEST_DIR)).filter((f) =>
-  f.endsWith(".json")
+// Judge the endpoint against the sources its build report says it loaded.
+// Publication builds deliberately omit uncleared SAM mirrors.
+const report = JSON.parse(
+  await readFile(join(ROOT, "build/ingest-report.json"), "utf8")
+)
+const expectedSources = report.sources.length
+const expectedMirrors = report.sources.filter((source) =>
+  source.key.startsWith("sam-")
 ).length
 
 const failures = []
@@ -92,7 +95,7 @@ try {
   const mirrors = sources.sources.filter((source) => source.mirrorOf)
   expect(
     "a mirrored source names what it mirrors and is marked uncleared",
-    mirrors.length === 5 &&
+    mirrors.length === expectedMirrors &&
       mirrors.every(
         (source) =>
           source.mirrorOf.includes("ego.cci.drexel.edu") &&
@@ -106,19 +109,21 @@ try {
 
   // A mirrored vocabulary term has the definition its publisher states,
   // which is behind a revision node rather than on the term.
-  const samTerm = payload(
-    await client.callTool({
-      name: "get_entity",
-      arguments: { iri: "https://ego.cci.drexel.edu/vocabulary/sintering" }
-    })
-  )
-  expect(
-    "a mirrored term has its definition and its undeclared licence",
-    samTerm.label === "sintering" &&
-      /powder/.test(samTerm.definition ?? "") &&
-      samTerm.source?.license === "UNDECLARED",
-    `${samTerm.label} / ${samTerm.source?.license}`
-  )
+  if (report.sources.some((source) => source.key === "sam-vocabulary")) {
+    const samTerm = payload(
+      await client.callTool({
+        name: "get_entity",
+        arguments: { iri: "https://ego.cci.drexel.edu/vocabulary/sintering" }
+      })
+    )
+    expect(
+      "a mirrored term has its definition and its undeclared licence",
+      samTerm.label === "sintering" &&
+        /powder/.test(samTerm.definition ?? "") &&
+        samTerm.source?.license === "UNDECLARED",
+      `${samTerm.label} / ${samTerm.source?.license}`
+    )
+  }
 
   // The cross-source lookup this hub exists to answer.
   const found = payload(
@@ -143,7 +148,8 @@ try {
     "a mirrored hit is marked as one rather than given a pseudo-version",
     found.results.some(
       (row) => row.mirrorOf && row.clearedForPublication === false
-    ),
+    ) ===
+      expectedMirrors > 0,
     found.results
       .filter((row) => row.source.startsWith("sam-"))
       .map(
@@ -174,6 +180,25 @@ try {
       entity.definition &&
       entity.source?.license === "CC-BY-4.0",
     `${entity.label} / ${entity.source?.license}`
+  )
+
+  const shared = payload(
+    await client.callTool({
+      name: "get_entity",
+      arguments: {
+        iri: "http://purl.obolibrary.org/obo/CHEBI_18248",
+        source: "pmdco"
+      }
+    })
+  )
+  expect(
+    "get_entity selects the requested source and lists alternative descriptions",
+    shared.source?.key === "pmdco" &&
+      shared.source?.version === "3.1.0" &&
+      shared.descriptions.some(
+        (row) => row.source.key === "chebi" && row.source.version === "254"
+      ) &&
+      shared.triples.every((row) => row.graph === "https://w3id.org/pmd/co/")
   )
 
   // The entity whose inferred parent the browse application shows.
@@ -300,7 +325,14 @@ try {
   // returned an internal string-length error.
   const huge = await client.callTool({
     name: "sparql_query",
-    arguments: { query: "CONSTRUCT { ?s ?p ?o } WHERE { ?s ?p ?o }" }
+    arguments: {
+      // Make a >2 MB answer from a bounded set of subjects. Constructing
+      // the entire ChEBI store tests the JVM heap, not the response ceiling.
+      query: `CONSTRUCT { ?s <https://example.org/large> ?text } WHERE {
+        { SELECT DISTINCT ?s WHERE { ?s ?p ?o } LIMIT 2048 }
+        BIND("${"x".repeat(2048)}" AS ?text)
+      }`
+    }
   })
   expect(
     "an oversized answer is refused with guidance",

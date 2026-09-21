@@ -6,13 +6,13 @@
 PREFIX ont: <@@ONT@@>
 SELECT ?s ?label ?definition ?key WHERE {
   GRAPH <@@DEFS@@> {
-    ?s ont:label ?label ; ont:sourceKey ?key .
-    OPTIONAL { ?s ont:definition ?definition }
-    FILTER(
-      REGEX(STR(?label), CONCAT("\\b", @@REGEX@@), "i") ||
-      (BOUND(?definition) && REGEX(STR(?definition), CONCAT("\\b", @@REGEX@@), "i"))
-    )
+    ?entry ont:entity ?s ; ont:label ?label ; ont:sourceKey ?key .
+    OPTIONAL { ?entry ont:definition ?definition }
+    BIND(IF(LCASE(STR(?label)) = LCASE(@@TEXT@@), 0,
+      IF(REGEX(STR(?label), CONCAT("\\b", @@REGEX@@), "i"), 1, 2)) AS ?tier)
+    FILTER(?tier < 2 ||
+      (BOUND(?definition) && REGEX(STR(?definition), CONCAT("\\b", @@REGEX@@), "i")))
   }
 }
-ORDER BY ?key ?label
+ORDER BY ?tier ?key ?label ?s
 LIMIT 200

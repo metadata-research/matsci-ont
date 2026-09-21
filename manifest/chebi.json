@@ -1,0 +1,15 @@
+{
+  "key": "chebi",
+  "kind": "external-snapshot",
+  "title": "ChEBI, Chemical Entities of Biological Interest (CORE)",
+  "ontologyIri": "http://purl.obolibrary.org/obo/chebi_core.owl",
+  "graphIri": "http://purl.obolibrary.org/obo/chebi_core.owl",
+  "version": "254",
+  "downloadUrl": "https://ftp.ebi.ac.uk/pub/databases/chebi/archive/rel254/ontology/chebi_core.owl",
+  "sha256": "e0611664ee7ec7ef3ed9ce68f337af3a361dc38238e9cbce32a1ab923932bc68",
+  "format": "rdfxml",
+  "license": "CC-BY-4.0",
+  "republishable": true,
+  "reason": false,
+  "notes": "Archived release 254, ontology versionIRI http://purl.obolibrary.org/obo/chebi/254/chebi_core.owl, artifact dated 2026-08-14. CORE retains definitions and hierarchy but omits FULL's synonyms and manually curated cross-references; LITE omits definitions and is unsuitable for grounding. License confirmed in the artifact's dcterms:license and the archive's ontology/LICENSE, with publisher guidance at https://www.ebi.ac.uk/chebi/about. Asserted hierarchy only: full ChEBI reasoning is not part of this pin. Entity IRIs are preserved, including those also described in PMDco."
+}

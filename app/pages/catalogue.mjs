@@ -5,12 +5,14 @@ import { select } from "../lib/store.mjs"
 import {
   base,
   escape,
+  licenseLink,
   attr,
   layout,
   errorPage,
   termLink
 } from "../lib/html.mjs"
 import { buildForest } from "../lib/tree.mjs"
+import { needsOverview, ROOT_LIMIT } from "../lib/browse-limits.mjs"
 import {
   catalogueRows,
   sourceByKey,
@@ -31,7 +33,7 @@ export async function cataloguePage() {
           ? "Mirror of a published dataset"
           : escape(row.version?.value ?? "")
       }</td></tr>
-<tr><th>License</th><td>${escape(row.license.value)}${
+<tr><th>License</th><td>${licenseLink(row.license.value)}${
         row.republishable?.value === "false"
           ? ' <span class="mark">not cleared for public serving</span>'
           : ""
@@ -61,11 +63,14 @@ export async function sourcePage(key, inferred) {
     return { status: 404, html: errorPage(404, `No source is named ${key}.`) }
 
   const showInferred = inferred && (await hasInferred(key))
+  const overview = needsOverview(source)
   const rows = await select(
-    "tree",
+    overview ? "roots" : "tree",
     hierarchySubstitutions(source, showInferred)
   )
-  const { forest, count } = buildForest(rows)
+  const { forest, count } = buildForest(
+    overview ? rows.slice(0, ROOT_LIMIT) : rows
+  )
 
   // Each node is one list item. A node with children carries a collapsible
   // details around its own label and the child list, so the tree is
@@ -84,7 +89,7 @@ export async function sourcePage(key, inferred) {
     ]
       .filter(Boolean)
       .join(" ")
-    const label = `${termLink(node.iri, node.label, showInferred)} ${marks}`
+    const label = `${termLink(node.iri, node.label, showInferred, key)} ${marks}`
     if (node.children.length === 0) return `<li>${label}</li>`
     return `<li><details open><summary>${label}</summary>
 <ul>${node.children.map(renderNode).join("\n")}</ul>
@@ -108,7 +113,7 @@ export async function sourcePage(key, inferred) {
 ${mirrorBanner(source)}
 <table>
 ${source.version ? `<tr><th>Version</th><td>${escape(source.version.value)}</td></tr>` : ""}
-<tr><th>License</th><td>${escape(source.license.value)}</td></tr>
+<tr><th>License</th><td>${licenseLink(source.license.value)}</td></tr>
 ${source.ontologyIri ? `<tr><th>Ontology IRI</th><td><code>${escape(source.ontologyIri.value)}</code></td></tr>` : ""}
 <tr><th>Named graph</th><td><code>${escape(source.graphIri.value)}</code></td></tr>
 <tr><th>Triples</th><td>${escape(Number(source.triples.value).toLocaleString("en-US"))}</td></tr>
@@ -117,7 +122,7 @@ ${source.ontologyIri ? `<tr><th>Ontology IRI</th><td><code>${escape(source.ontol
 <p><a href="${base}/graph/${attr(key)}">Graph view</a></p>
 ${toggle}
 <h2>Hierarchy${showInferred ? " (asserted and inferred)" : ""}</h2>
-<p class="mark">${escape(count.toLocaleString("en-US"))} classes.</p>
+${overview ? `<p class="mark">Large source: showing ${count} root classes${rows.length > ROOT_LIMIT ? ` (first ${ROOT_LIMIT})` : ""}. Open a class to browse its ancestors and children. The complete hierarchy remains queryable.</p>` : `<p class="mark">${escape(count.toLocaleString("en-US"))} classes.</p>`}
 <div class="tree">
 ${treeHtml}
 </div>`

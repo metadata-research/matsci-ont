@@ -19,6 +19,12 @@ hierarchy comes from `rdfs:subClassOf` for OWL ontologies and from
 `skos:broader` for SKOS vocabularies. A class with children is a
 collapsible section that folds and unfolds.
 
+For sources with more than 5,000 indexed entries, including ChEBI, the
+source page shows at most 100 non-deprecated root classes. Open a class to
+follow its ancestors and children, or search for a term directly. This is
+a starting view; it does not enumerate the entire ontology. Deprecated
+entities remain in the source snapshot and may be found by search.
+
 Three markers appear in the tree where they apply:
 
 - A repeat marker on a class already shown under another parent. The
@@ -54,6 +60,15 @@ with every named term linked. Expressions the renderer does not cover are
 counted above the raw-triples section, which always holds the complete
 fetched data.
 
+If several sources describe the same publisher IRI, the page offers a
+source selector. `?iri=...&source=chebi` selects ChEBI's definition,
+annotations, axioms and hierarchy; `source=pmdco` selects PMD's description.
+Search results, graph nodes and links within that source's hierarchy retain
+this choice. Without a source, the first source key alphabetically is used.
+These are descriptions of the same IRI, not assertions that similarly
+named terms in other ontologies are equivalent. Reviewed mappings and SAM
+visualization switching are separate planned work.
+
 The mappings section lists `skos:exactMatch` and related links to other
 vocabularies, and the referenced-by section lists entities that point at
 this one.
@@ -73,7 +88,8 @@ out.
 ## Search
 
 Search matches whole words in labels and definitions, case-insensitively,
-and groups results by source. A search for `sinter` finds sintering
+and groups results by source. Exact label matches rank first before the
+result cap, followed by label matches and then definition-only matches. A search for `sinter` finds sintering
 concepts and does not match unrelated terms that merely contain the
 letters.
 
@@ -82,8 +98,17 @@ letters.
 The graph view draws one source as a diagram: classes as nodes, subclass
 edges as arrows, and object properties as labelled dashed edges between
 their domain and range classes. Clicking a node opens its entity page.
-The filter box dims everything that does not match. A source with more
-than 300 classes draws only the hierarchy, and the page says so.
+The filter box dims everything that does not match. Large overviews start
+at a readable zoom around a connected node. Zoom controls and dragging let
+you explore; filtering centers the first match, and Fit overview shows the
+whole bounded diagram. For sources of up to
+5,000 indexed entries, a graph with more than 300 nodes omits property
+edges while retaining the hierarchy. For larger sources, the graph starts
+with up to 100 non-deprecated roots and expands at most two hierarchy
+levels, capped at 300 nodes and 1,200 edges. Every edge joins displayed
+nodes; the note explicitly identifies this as an incomplete overview.
+Open a node to continue browsing. A disconnected cycle with no root is not
+represented in this overview; its entities remain searchable.
 
 ## Running it locally
 

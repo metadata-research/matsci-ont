@@ -28,6 +28,7 @@ import { checkMirror } from "./lib/checks/mirror.mjs"
 import { checkReasoning } from "./lib/checks/reasoning.mjs"
 import { checkEndpoint } from "./lib/checks/endpoint.mjs"
 import { checkBrowse } from "./lib/checks/browse.mjs"
+import { checkChebi } from "./lib/checks/chebi.mjs"
 import { checkApi } from "./lib/checks/api.mjs"
 import { checkDeterminism } from "./lib/checks/determinism.mjs"
 
@@ -122,6 +123,7 @@ try {
   try {
     await group("browse", checkBrowse, context)
     await group("api", checkApi, context)
+    await group("ChEBI", checkChebi, context)
   } finally {
     app.close()
   }

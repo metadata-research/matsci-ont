@@ -6,9 +6,10 @@
   const container = document.getElementById("cy")
   const key = container.dataset.source
   const base = container.dataset.base ?? ""
-  const data = await (
-    await fetch(`${base}/graph/${encodeURIComponent(key)}.json`)
-  ).json()
+  const response = await fetch(`${base}/graph/${encodeURIComponent(key)}.json`)
+  if (!response.ok) throw new Error(`HTTP ${response.status}`)
+  const data = await response.json()
+  if (!data.elements) throw new Error("No graph data returned")
   document.getElementById("note").textContent = data.note
 
   const cy = cytoscape({
@@ -16,7 +17,8 @@
     elements: data.elements,
     layout: {
       name: "dagre",
-      rankDir: "BT",
+      rankDir: data.overview ? "LR" : "BT",
+      fit: !data.overview,
       nodeSep: 30,
       rankSep: 60,
       animate: false
@@ -26,7 +28,7 @@
         selector: "node",
         style: {
           label: "data(label)",
-          "font-size": "10px",
+          "font-size": data.overview ? "14px" : "10px",
           "text-wrap": "wrap",
           "text-max-width": "90px",
           width: 24,
@@ -61,10 +63,34 @@
     ]
   })
 
+  if (data.overview && cy.nodes().length) {
+    cy.zoom(1)
+    cy.center(cy.nodes().max((node) => node.degree()).ele)
+  }
+  for (const id of ["zoom-in", "zoom-out", "fit-graph"]) {
+    document.getElementById(id).disabled = false
+  }
+  document.getElementById("zoom-in").addEventListener("click", () => {
+    cy.zoom({
+      level: cy.zoom() * 1.4,
+      renderedPosition: { x: cy.width() / 2, y: cy.height() / 2 }
+    })
+  })
+  document.getElementById("zoom-out").addEventListener("click", () => {
+    cy.zoom({
+      level: cy.zoom() / 1.4,
+      renderedPosition: { x: cy.width() / 2, y: cy.height() / 2 }
+    })
+  })
+  document
+    .getElementById("fit-graph")
+    .addEventListener("click", () => cy.fit(undefined, 30))
+
   cy.on("tap", "node", (event) => {
     window.location = event.target.data("url")
   })
 
+  document.getElementById("filter").disabled = false
   document.getElementById("filter").addEventListener("input", (event) => {
     const wanted = event.target.value.toLowerCase()
     cy.batch(() => {
@@ -74,6 +100,13 @@
         .nodes()
         .filter((node) => node.data("label").toLowerCase().includes(wanted))
       cy.elements().not(keep).not(keep.connectedEdges()).addClass("dim")
+      if (data.overview && keep.length) {
+        cy.zoom(1)
+        cy.center(keep.first())
+      }
     })
   })
-})()
+})().catch(() => {
+  document.getElementById("note").textContent =
+    "The graph could not be loaded. Retry or use the source page to browse terms."
+})

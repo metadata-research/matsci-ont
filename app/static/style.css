@@ -104,6 +104,7 @@ td {
   padding: 0.05rem 0;
 }
 .hierarchy {
+  overflow-x: auto;
   font-family: ui-monospace, monospace;
   font-size: 0.9rem;
   background: var(--paper);
@@ -131,6 +132,9 @@ td {
 }
 .raw {
   font-size: 0.8rem;
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
 }
 .raw .graph {
   color: var(--muted);
@@ -143,4 +147,19 @@ td {
 details > summary {
   cursor: pointer;
   margin: 0.75rem 0 0.25rem;
+}
+
+@media (max-width: 36rem) {
+  nav {
+    flex-wrap: wrap;
+  }
+  nav form {
+    flex-basis: 100%;
+    min-width: 0;
+  }
+  nav input[type="search"] {
+    flex: 1;
+    min-width: 0;
+    width: auto;
+  }
 }

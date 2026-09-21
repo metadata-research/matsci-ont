@@ -58,3 +58,24 @@ Asking a client for "the definition of sintering in every ontology you
 have" runs `find_entities`, which returns a hit from every
 source that defines the term, each with its licence, and the client can
 then call `get_entity` on any of those IRIs for the full record.
+
+## Selecting a source description
+
+`get_entity` accepts an optional `source` key alongside `iri`. For example:
+
+```json
+{ "iri": "http://purl.obolibrary.org/obo/CHEBI_18248", "source": "chebi" }
+```
+
+The answer selects ChEBI's description of iron atom and limits asserted
+triples and inferred parents to that source. `descriptions` lists the
+alternative descriptions, each with its own label, optional definition,
+definition property and source attribution. `source: "pmdco"` selects the
+PMD snapshot instead. An omitted source chooses the alphabetically first
+source key; a source that does not describe that indexed entity is refused.
+The response's `note` explains how to select another description.
+
+ChEBI CORE 254 is a cleared CC BY 4.0 reference source. Credit ChEBI and its
+version, and include the publisher entity and licence links when quoting
+its definition. A source's description of an imported IRI does not create
+a new entity or prove equivalence to another similarly named term.

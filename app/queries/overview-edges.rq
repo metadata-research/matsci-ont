@@ -1,0 +1,9 @@
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+SELECT DISTINCT ?a ?b WHERE {
+  VALUES ?a { @@NODES@@ }
+  VALUES ?b { @@NODES@@ }
+  GRAPH <@@GRAPH@@> { ?a rdfs:subClassOf|skos:broader ?b }
+}
+ORDER BY ?a ?b
+LIMIT 1201

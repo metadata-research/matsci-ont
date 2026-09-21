@@ -1,0 +1,29 @@
+# A source record cannot borrow another record's attribution or text.
+PREFIX ont: <@@ONT@@>
+PREFIX dcterms: <http://purl.org/dc/terms/>
+SELECT (COUNT(*) AS ?n) WHERE {
+  {
+    SELECT ?entry WHERE {
+      GRAPH <@@DEFS@@> {
+        ?entry ont:sourceKey ?key .
+        OPTIONAL { ?entry ont:entity ?entity }
+        OPTIONAL { ?entry ont:sourceVersion ?version }
+        OPTIONAL { ?entry ont:license ?license }
+        OPTIONAL { ?entry ont:label ?label }
+        OPTIONAL { ?entry ont:definition ?definition }
+        OPTIONAL { ?entry ont:fromSource ?source }
+      }
+    } GROUP BY ?entry
+    HAVING (COUNT(DISTINCT ?key) != 1 || COUNT(DISTINCT ?entity) != 1 ||
+            COUNT(DISTINCT ?version) != 1 || COUNT(DISTINCT ?license) != 1 ||
+            COUNT(DISTINCT ?label) != 1 || COUNT(DISTINCT ?definition) > 1 ||
+            COUNT(DISTINCT ?source) != 1)
+  }
+  UNION
+  {
+    GRAPH <@@DEFS@@> { ?entry ont:sourceKey ?key ; ont:fromSource ?source ; ont:license ?license }
+    FILTER NOT EXISTS {
+      GRAPH <@@CATALOG@@> { ?source ont:sourceKey ?key ; dcterms:license ?license }
+    }
+  }
+}

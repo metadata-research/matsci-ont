@@ -1,8 +1,8 @@
 // Search across the definitions index, grouped by source.
 
-import { regexLiteral } from "../lib/terms.mjs"
+import { regexLiteral, literal } from "../lib/terms.mjs"
 import { select } from "../lib/store.mjs"
-import { escape, layout, termLink } from "../lib/html.mjs"
+import { escape, layout, termLink, licenseLink } from "../lib/html.mjs"
 import { common } from "../lib/substitutions.mjs"
 import { catalogueRows } from "./common.mjs"
 
@@ -10,7 +10,11 @@ export async function searchPage(q) {
   const query = (q ?? "").trim().slice(0, 200)
   if (!query)
     return layout("Search", "<h1>Search</h1><p>Type a term above.</p>")
-  const rows = await select("search", { ...common, REGEX: regexLiteral(query) })
+  const rows = await select("search", {
+    ...common,
+    TEXT: literal(query),
+    REGEX: regexLiteral(query)
+  })
 
   const byKey = new Map()
   for (const row of rows) {
@@ -28,15 +32,15 @@ export async function searchPage(q) {
       ]) => `<h2>${escape(catalogue.get(key)?.title.value ?? key)}</h2>
 ${
   catalogue.get(key)?.mirrorOf
-    ? `<p class="mark">Mirrored from MatSci-SAM, licence ${escape(
+    ? `<p class="mark">Mirrored from MatSci-SAM, licence ${licenseLink(
         catalogue.get(key)?.license.value ?? ""
       )}.</p>`
-    : `<p class="mark">${escape(catalogue.get(key)?.license.value ?? "")}</p>`
+    : `<p class="mark">${licenseLink(catalogue.get(key)?.license.value ?? "")}</p>`
 }
 <ul>${hits
         .map(
           (row) =>
-            `<li>${termLink(row.s.value, row.label.value)}${
+            `<li>${termLink(row.s.value, row.label.value, false, key)}${
               row.definition
                 ? `<span class="mark">: ${escape(row.definition.value.slice(0, 200))}</span>`
                 : ""

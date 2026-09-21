@@ -6,6 +6,7 @@
 // handling and tested as such; what remains here is the transport and the
 // shapes returned.
 
+import { descriptionsFrom, chooseDescription } from "./lib/descriptions.mjs"
 import { inferredGraphFor } from "../shared/vocabulary.mjs"
 import {
   checkIri,
@@ -17,7 +18,7 @@ import {
 import { select, readCapped, MAX_ANSWER_BYTES } from "./lib/store.mjs"
 import { checkQueryForm, withRowLimit } from "./lib/sparql.mjs"
 import { queryUrl } from "../shared/endpoint.mjs"
-import { common, graphs, ONT } from "./lib/substitutions.mjs"
+import { common, ONT } from "./lib/substitutions.mjs"
 
 export const ROW_CAP = 500
 // Matches arq:queryTimeout in the reviewed Fuseki configuration.
@@ -84,7 +85,8 @@ export async function getSource(key) {
   return source
 }
 
-export async function getEntity(iri) {
+export async function getEntity(iri, { source } = {}) {
+  if (source !== undefined) checkKey(source)
   checkIri(iri)
   const rows = await select("entity", { ...common, IRI: iri })
   if (rows.length === 0) {
@@ -96,6 +98,8 @@ export async function getEntity(iri) {
     if (references.length === 0) {
       throw new RejectedInput(`nothing in the store mentions ${iri}`)
     }
+    if (source !== undefined)
+      throw new RejectedInput("This source does not describe the entity.")
     return {
       iri,
       describedHere: false,
@@ -109,17 +113,25 @@ export async function getEntity(iri) {
     }
   }
 
-  const entry = {}
+  const descriptions = descriptionsFrom(
+    await select("descriptions", { ...common, IRI: iri })
+  )
+  const entry = descriptions.length
+    ? chooseDescription(descriptions, source)
+    : {}
+  const catalogue = await listSources()
+  const chosen = catalogue.find((item) =>
+    entry.sourceKey
+      ? item.key === entry.sourceKey
+      : (source === undefined || item.key === source) &&
+        rows.some((row) => row.g.value === item.graphIri)
+  )
+  if (source !== undefined && !chosen)
+    throw new RejectedInput("This source does not describe the entity.")
+  const selectedGraph = chosen?.graphIri
   const triples = []
   for (const row of rows) {
-    if (row.g.value === graphs.definitions && row.s.value === iri) {
-      const name = row.p.value.startsWith(ONT)
-        ? row.p.value.slice(ONT.length)
-        : row.p.value
-      entry[name] = row.o.value
-      continue
-    }
-    if (row.g.value === graphs.catalog) continue
+    if (selectedGraph && row.g.value !== selectedGraph) continue
     triples.push({
       subject: row.s.type === "bnode" ? `_:${row.s.value}` : row.s.value,
       predicate: row.p.value,
@@ -142,7 +154,6 @@ export async function getEntity(iri) {
 
   // An entity the definitions index skipped, because it has no label,
   // still comes from a source: the graph its triples are in names it.
-  const catalogue = await listSources()
   const graphKeys = new Set(triples.map((triple) => triple.graph))
   const fromGraph = entry.sourceKey
     ? undefined
@@ -154,6 +165,24 @@ export async function getEntity(iri) {
     label: entry.label,
     definition: entry.definition,
     definitionProperty: entry.definitionProperty,
+    descriptions: descriptions.map((item) => ({
+      label: item.label,
+      definition: item.definition,
+      definitionProperty: item.definitionProperty,
+      source: {
+        key: item.sourceKey,
+        ...(item.sourceVersion !== "mirror"
+          ? { version: item.sourceVersion }
+          : {}),
+        license: item.license,
+        ...mirrorFacts(catalogue, item.sourceKey)
+      }
+    })),
+    ...(descriptions.length > 1
+      ? {
+          note: `Description from ${entry.sourceKey}; use source to select another description of this IRI.`
+        }
+      : {}),
     source: entry.sourceKey
       ? {
           key: entry.sourceKey,
@@ -206,6 +235,7 @@ export async function findEntities(q, { sources, limit } = {}) {
 
   const rows = await select("find", {
     ...common,
+    TEXT: literal(text.slice(0, 200)),
     REGEX: regexLiteral(text.slice(0, 200)),
     SOURCEFILTER: filter,
     LIMIT: String(cap + 1)

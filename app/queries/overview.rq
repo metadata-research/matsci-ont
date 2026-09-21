@@ -1,0 +1,17 @@
+# Expand only the preceding bounded frontier, one named hierarchy step.
+# A whole-source property path with a LIMIT still evaluates a huge join.
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+PREFIX owl: <http://www.w3.org/2002/07/owl#>
+PREFIX ont: <@@ONT@@>
+SELECT DISTINCT ?s ?label WHERE {
+  VALUES ?parent { @@PARENTS@@ }
+  GRAPH <@@GRAPH@@> {
+    ?s rdfs:subClassOf|skos:broader ?parent .
+    FILTER(isIRI(?s))
+    FILTER NOT EXISTS { ?s owl:deprecated true }
+  }
+  GRAPH <@@DEFS@@> { ?entry ont:entity ?s ; ont:sourceKey @@KEY@@ ; ont:label ?label }
+}
+ORDER BY ?label ?s
+LIMIT @@LIMIT@@
