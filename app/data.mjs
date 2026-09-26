@@ -1,6 +1,10 @@
 // Data access shared by the browse pages and the MCP tools. Every function
 // answers from the loopback SPARQL endpoint, read only, and returns plain
-// objects.
+// objects. The one exception is grounding, which answers from the in-memory
+// lookup index in lib/lookup-index.mjs when it is ready and current. The
+// index is a copy of the store's definitions graph, grounding.rq remains the
+// reference it reproduces, and grounding falls back to it whenever the index
+// cannot answer.
 //
 // Reading a caller's own SPARQL is in lib/sparql.mjs, which is pure text
 // handling and tested as such; what remains here is the transport and the
@@ -15,7 +19,18 @@ import {
   regexLiteral,
   RejectedInput
 } from "./lib/terms.mjs"
-import { select, readCapped, MAX_ANSWER_BYTES } from "./lib/store.mjs"
+import {
+  select,
+  readCapped,
+  requestBudget,
+  MAX_ANSWER_BYTES
+} from "./lib/store.mjs"
+import {
+  groundingRows,
+  indexHasKeys,
+  indexReadsTerm
+} from "./lib/lookup-index.mjs"
+import { lookupIndexFor, noteLookup } from "./lib/lookup-state.mjs"
 import { checkQueryForm, withRowLimit } from "./lib/sparql.mjs"
 import { queryUrl } from "../shared/endpoint.mjs"
 import { common, ONT } from "./lib/substitutions.mjs"
@@ -23,6 +38,9 @@ import { common, ONT } from "./lib/substitutions.mjs"
 export const ROW_CAP = 500
 // Matches arq:queryTimeout in the reviewed Fuseki configuration.
 export const STORE_TIMEOUT_MS = 30000
+// One deadline for both of a grounding lookup's store calls, below the
+// 15 seconds MatSci-SAM waits and the store's own 30.
+export const GROUNDING_TIMEOUT_MS = 12000
 
 export function checkLimit(value, fallback, cap) {
   if (value === undefined || value === null) return fallback
@@ -290,12 +308,30 @@ export function allowedSources(catalogue, { sources, includeMirror } = {}) {
   }
 }
 
-export async function grounding(q, { sources, limit, includeMirror } = {}) {
+// The catalogue fields grounding reads, without listSources' entry counts,
+// which count every description in the store on each call.
+async function groundingSources(options) {
+  const rows = await select("grounding-sources", common, options)
+  return rows.map((row) => ({
+    key: row.key.value,
+    title: row.title.value,
+    clearedForPublication: row.republishable?.value === "true",
+    ...(row.mirrorOf ? { mirrorOf: row.mirrorOf.value } : {})
+  }))
+}
+
+// `lookup` is for verification and tests: "sparql" skips the index, and
+// "index" fails rather than fall back to SPARQL.
+export async function grounding(
+  q,
+  { sources, limit, includeMirror, signal, lookup = "auto" } = {}
+) {
   const text = String(q ?? "").trim()
   if (text === "") throw new RejectedInput("a grounding lookup needs a term")
   const cap = checkLimit(limit, 10, 50)
 
-  const catalogue = await listSources()
+  const budget = requestBudget(GROUNDING_TIMEOUT_MS, signal)
+  const catalogue = await groundingSources(budget)
   const { keys, mirrorsAvailable } = allowedSources(catalogue, {
     sources,
     includeMirror
@@ -315,24 +351,54 @@ export async function grounding(q, { sources, limit, includeMirror } = {}) {
   }
 
   const titles = new Map(catalogue.map((source) => [source.key, source.title]))
-  const rows = await select("grounding", {
-    ...common,
-    TEXT: literal(text.slice(0, 200)),
-    REGEX: regexLiteral(text.slice(0, 200)),
-    SOURCEFILTER: `FILTER(?key IN (${keys.map((key) => `"${key}"`).join(", ")}))`,
-    LIMIT: String(cap + 1)
-  })
+  const term = text.slice(0, 200)
+  const { index, release } =
+    lookup !== "sparql" && indexReadsTerm(term)
+      ? await lookupIndexFor(budget.signal)
+      : { index: null, release: () => {} }
+  let rows
+  try {
+    if (index && indexHasKeys(index, keys)) {
+      rows = groundingRows(index, { text: term, keys, cap })
+      noteLookup(true)
+    } else {
+      if (lookup === "index")
+        throw new Error("The lookup index cannot answer this grounding lookup.")
+      const bindings = await select(
+        "grounding",
+        {
+          ...common,
+          TEXT: literal(term),
+          REGEX: regexLiteral(term),
+          SOURCEFILTER: `FILTER(?key IN (${keys.map((key) => `"${key}"`).join(", ")}))`,
+          LIMIT: String(cap + 1)
+        },
+        budget
+      )
+      rows = bindings.map((row) => ({
+        iri: row.iri.value,
+        label: row.label.value,
+        definition: row.definition.value,
+        key: row.key.value,
+        version: row.version.value,
+        license: row.license.value
+      }))
+      noteLookup(false)
+    }
+  } finally {
+    release()
+  }
 
   return {
     query: text,
     results: rows.slice(0, cap).map((row) => ({
-      term: row.label.value,
-      definition: row.definition.value,
-      source: titles.get(row.key.value) ?? row.key.value,
-      sourceIri: row.iri.value,
-      sourceKey: row.key.value,
-      version: row.version.value,
-      license: row.license.value
+      term: row.label,
+      definition: row.definition,
+      source: titles.get(row.key) ?? row.key,
+      sourceIri: row.iri,
+      sourceKey: row.key,
+      version: row.version,
+      license: row.license
     })),
     truncated: rows.length > cap,
     ...(note ? { note } : {})

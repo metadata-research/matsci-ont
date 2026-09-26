@@ -206,6 +206,27 @@ it does not assert that the results represent equivalent or nearest concepts.
 named parents. [The hierarchy preview guide](docs/guide/hierarchy-preview.md)
 describes these compact JSON contracts, source selection and bounds.
 
+The candidate and grounding routes answer from an index of the store's
+descriptions that the application holds in memory, because a regular
+expression cannot use the store's indexes and every lookup would otherwise
+read every description. The application loads the index from the store in a
+worker thread when it starts. It reads the catalogue at most every 30
+seconds and loads the index again when the store has changed. A load takes
+some seconds, and longer on a busy host. While it runs, one lookup at a time
+is answered with SPARQL queries and the others wait for the index within
+their deadline. A term with a capital sigma (Σ) is always answered with
+SPARQL, because Java lowercases that letter by a rule the index does not
+reproduce.
+
+A load that the store stops part way is tried again after 30 seconds. A load
+that meets data the index cannot hold, or that needs more than 192 MB, is
+abandoned, and lookups stay on SPARQL until the store changes. Each load
+writes one line to standard error with the entries, the time taken, the size
+of the index and the memory the load needed. The queries remain the
+reference, and `pnpm verify` compares the two on the built store. Set
+`MATSCI_ONT_LOOKUP_INDEX=off` in the application's environment to answer
+every lookup with SPARQL instead.
+
 ## Comparing two builds
 
 `pnpm verify:full` builds the store a second time and compares the two in

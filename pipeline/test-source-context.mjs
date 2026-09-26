@@ -138,6 +138,27 @@ try {
     /does not describe/
   )
   await assert.rejects(getEntity(iri, { source: "../bad" }))
+
+  // The lookup index, loaded from this store in its worker, grounds alike.
+  const { loadLookupIndex, resetLookupIndex } = await import(
+    "../app/lib/lookup-state.mjs"
+  )
+  const index = await loadLookupIndex()
+  assert.ok(index, "the lookup index loads from the store")
+  assert.deepEqual(
+    index.sources.map((source) => source.key),
+    ["alpha", "beta"]
+  )
+  for (const term of ["shared", "definition", "alpha", "parent"]) {
+    for (const options of [{}, { sources: ["beta"] }, { limit: 1 }]) {
+      assert.deepEqual(
+        await grounding(term, { ...options, lookup: "index" }),
+        await grounding(term, { ...options, lookup: "sparql" }),
+        `grounding ${term} ${JSON.stringify(options)}`
+      )
+    }
+  }
+  resetLookupIndex()
   console.log(
     "OK: source-specific text, attribution, triples, grounding and navigation survive conflicting descriptions"
   )

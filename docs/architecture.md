@@ -104,3 +104,27 @@ ChEBI's size requires bounding work before rendering. Large-source graph
 queries expand a small frontier one level at a time, then fetch only edges
 between displayed nodes. A LIMIT on an unbounded transitive query does not
 bound the query's work. The full snapshot remains queryable.
+
+## The lookup index is a cache of the store
+
+`/grounding` and `/candidates` match a term against every label of the
+cleared sources, and grounding against every definition as well. In SPARQL
+that is a pass over some 220,000 entries per request, because no TDB2 index
+can serve a case-insensitive word match. `app/lib/lookup-index.mjs` holds the
+same entries in memory and answers in milliseconds.
+
+The index is derived and never authoritative. `app/lib/lookup-worker.mjs`
+streams it from the running store with `lookup-entries.rq` when the
+application starts, in a worker thread, and `app/lib/lookup-state.mjs`
+reloads it when the catalogue fingerprint changes. Nothing is written back
+and nothing is shipped beside the store, so the store remains the single
+source of truth and a host's index always describes the store that host
+serves.
+
+The matching rules are Jena's, reproduced in JavaScript: its ASCII-only
+`\b`, its case-insensitive comparison, `LCASE` and the `ORDER BY` order of
+literals. The SPARQL queries remain the reference. `pnpm verify` compares
+both paths on the real store and requires identical answers, and
+`app/test-preview.mjs` runs its suite with the index off and on. The same
+queries answer at run time while the index loads, when
+`MATSCI_ONT_LOOKUP_INDEX=off`, and for a request the index does not cover.

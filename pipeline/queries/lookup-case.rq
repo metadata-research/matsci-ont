@@ -1,0 +1,12 @@
+# Case-insensitive matching as Jena does it, for every pair of characters
+# the lookup index reads: a pattern of the one character, which Java
+# compiles to a single-character predicate, and of the character followed
+# by x, which it compiles to a slice that folds differently. Only pairs that
+# match either way are returned.
+SELECT ?t ?c ?single ?slice WHERE {
+  VALUES (?t ?pattern) { @@CHARACTERS@@ }
+  VALUES ?c { @@TEXTS@@ }
+  BIND(REGEX(?c, CONCAT("^", ?pattern, "$"), "i") AS ?single)
+  BIND(REGEX(CONCAT(?c, "x"), CONCAT("^", ?pattern, "x$"), "i") AS ?slice)
+  FILTER(?single || ?slice)
+}

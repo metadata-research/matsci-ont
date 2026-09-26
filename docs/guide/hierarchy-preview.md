@@ -95,10 +95,21 @@ was asserted; it does not establish that the entity is an ontology root.
 
 ## Bounds and errors
 
-Each request shares a 12-second deadline across its store queries. Query
-results and final JSON responses are capped at 128 KiB. More than 32 eligible
-sources is an error rather than a silently incomplete source list. Per-source
-candidate caps and the parent cap use an extra result row to detect truncation.
+Each request shares a 12-second deadline across its store queries. The store
+is sent the deadline and stops a query when it passes, and the application
+stops waiting as soon as the caller disconnects. Query results and final JSON
+responses are capped at 128 KiB. More than 32 eligible sources is an error
+rather than a silently incomplete source list. Per-source candidate caps and
+the parent cap use an extra result row to detect truncation.
+
+Candidate searches are answered from an index of the descriptions that the
+application holds in memory. The index loads when the application starts
+and again after the store is replaced. That takes some seconds, and longer
+when the host is busy. While it loads, one search at a time runs as a SPARQL
+query against the store, which gives the same answer in seconds rather than
+milliseconds. The others wait for the index within the same 12-second
+deadline. A search still waiting when the deadline passes fails with HTTP
+502, as any other store failure does.
 
 Responses, including errors, are JSON. Invalid input or a selection outside
 the permitted scope returns HTTP 400 with `{error}`. Store failures,

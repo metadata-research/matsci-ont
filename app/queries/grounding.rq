@@ -12,6 +12,12 @@
 #
 # An entry with no definition cannot ground anything, so the pattern
 # requires one rather than leaving it optional.
+#
+# ?iri comes last in the order so that entries with the same tier, source
+# and label come back in one order every time, rather than in the order the
+# store happens to scan them. No two groundable entries of the current
+# publication store share a source and label, so today it changes no answer.
+# The lookup index in app/lib/lookup-index.mjs answers from the same order.
 PREFIX ont: <@@ONT@@>
 SELECT ?iri ?label ?definition ?key ?version ?license ?tier WHERE {
   GRAPH <@@DEFS@@> {
@@ -27,5 +33,5 @@ SELECT ?iri ?label ?definition ?key ?version ?license ?tier WHERE {
     FILTER(?tier < 2 || REGEX(STR(?definition), CONCAT("\\b", @@REGEX@@), "i"))
   }
 }
-ORDER BY ?tier ?key ?label
+ORDER BY ?tier ?key ?label ?iri
 LIMIT @@LIMIT@@
