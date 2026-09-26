@@ -116,10 +116,52 @@ same entries in memory and answers in milliseconds.
 The index is derived and never authoritative. `app/lib/lookup-worker.mjs`
 streams it from the running store with `lookup-entries.rq` when the
 application starts, in a worker thread, and `app/lib/lookup-state.mjs`
-reloads it when the catalogue fingerprint changes. Nothing is written back
+reloads it when the catalogue fingerprint changes, which a timer reads every
+30 seconds while the index is ready. Nothing is written back
 and nothing is shipped beside the store, so the store remains the single
 source of truth and a host's index always describes the store that host
 serves.
+
+A large source is read in pages, because Fuseki stops any query at 30
+seconds and a host with slow disks and little memory read ChEBI in one query
+at about that limit. `app/lib/lookup-load.mjs` asks the store how many
+descriptions the source has (`lookup-count.rq`), and splits it into ranges
+of the entry IRIs, which the build mints as the source key and a SHA-256 in
+hex under one prefix (`shared/vocabulary.mjs`, where both layers read the
+rule). Jena filters the source's entries by the range before it reads
+anything else about them, so a page costs its share of the source plus one
+pass over the source's entry IRIs. The first range is open below and the
+last open above, so the ranges cover every string once whatever the IRIs
+look like, and the minting only decides how evenly the pages fill. A page
+is added only once it has arrived whole, and a load is kept only when its
+pages held exactly the descriptions the store counts, so a page missed or
+read twice fails the load instead of changing the index. The count is one
+read of an index, so it does not grow into a slow query, but it counts
+descriptions with or without a label, which the pages do not. So pages
+that do not add up are settled by the catalogue, read again: a store that
+changed during the load is loaded again at once, and one that did not holds
+descriptions the index cannot account for, and is abandoned until it
+changes.
+
+A load that fails for a reason the store may not repeat, a query stopped
+or a store out of reach, is tried again by a timer rather than by the next
+lookup, so a host that receives no lookups still recovers. `/lookup-status`
+reports the state from memory, which lets an installer wait for the index
+without starting the SPARQL lookups that would compete with the load.
+
+While a load runs, lookups are held back from SPARQL, since each is a scan
+that slows the load, but only for part of their deadline. One at a time
+goes to SPARQL at once, and the others wait for at most a quarter of the
+time their deadline leaves. Paging made a load longer than a lookup's
+deadline on a slow host, so a lookup that waited for the whole of it would
+fail where SPARQL would have answered.
+
+Paging bounds the time of each query, not the memory of the index. The
+load peaks at about 92 MB for the current 222,925 descriptions and grows
+with them, and it is abandoned past 192 MB, about 500,000 descriptions,
+which keeps the process under the service's memory limit. A larger store
+needs the budget in `lookup-load.mjs`, the worker's heap and the unit's
+limits raised together, on a host with the memory to spare.
 
 The matching rules are Jena's, reproduced in JavaScript: its ASCII-only
 `\b`, its case-insensitive comparison, `LCASE` and the `ORDER BY` order of

@@ -16,14 +16,14 @@ import { grounding } from "./data.mjs"
 import { findCandidates, getHierarchy } from "./preview.mjs"
 import { RejectedInput } from "./lib/terms.mjs"
 import { handleMcpRequest, MAX_REQUEST_BYTES } from "./mcp.mjs"
-import { warmLookupIndex } from "./lib/lookup-state.mjs"
+import { publicLookupStatus, warmLookupIndex } from "./lib/lookup-state.mjs"
 
 const require = createRequire(import.meta.url)
 
 // The routes a program calls rather than reads. They answer JSON on every
 // path, including refusal.
 const JSON_ROUTES =
-  /^\/(grounding$|candidates$|hierarchy$|graph\/[a-z0-9-]+\.json$)/
+  /^\/(grounding$|candidates$|hierarchy$|lookup-status$|graph\/[a-z0-9-]+\.json$)/
 
 export const DEFAULT_APP_PORT = Number(process.env.MATSCI_ONT_APP_PORT ?? 3100)
 
@@ -72,6 +72,16 @@ async function handle(url, { signal } = {}) {
       status: 200,
       type: "application/json",
       body: JSON.stringify(answer)
+    }
+  }
+  // Whether the lookup index is ready, from memory alone. An installer or
+  // a health check polls this instead of timing a lookup, which would
+  // start a SPARQL scan that competes with the load it is waiting for.
+  if (url.pathname === "/lookup-status") {
+    return {
+      status: 200,
+      type: "application/json",
+      body: JSON.stringify(publicLookupStatus())
     }
   }
   if (url.pathname === "/hierarchy") {

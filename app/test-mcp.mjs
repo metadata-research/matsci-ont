@@ -44,6 +44,10 @@ try {
     port: 3197
   })
   process.env.MATSCI_ONT_QUERY_URL = `${fuseki.base}/query`
+  // Which path answers a lookup is for the lookup tests and verification.
+  // Here the index would load in the background, answer only the calls
+  // made after it was ready, and still be reading when the store stops.
+  process.env.MATSCI_ONT_LOOKUP_INDEX = "off"
   const { startApp } = await import("./app.mjs")
   app = await startApp(PORT)
 

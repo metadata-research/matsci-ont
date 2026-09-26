@@ -571,7 +571,7 @@ ${[...dataset]
   const withoutIndex = []
   record = (answer) => (withoutIndex.push(answer), answer)
   await suite()
-  assert.equal(lookupIndexStatus().state, "idle")
+  assert.equal(lookupIndexStatus().state, "off")
   assert.equal(lookupIndexStatus().answered, 0, "the first run used SPARQL")
 
   configureLookupIndex({ loader: inThreadLoader })
