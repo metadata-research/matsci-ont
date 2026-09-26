@@ -31,15 +31,22 @@ import {
 } from "./lib/lookup-index.mjs"
 import {
   configureLookupIndex,
+  LOAD_WAIT_SHARE,
   loadLookupIndex,
   lookupIndexFor,
   lookupIndexStatus,
   lookupIndexSwitchedOff,
+  publicLookupStatus,
+  RETRY_DELAYS_MS,
   resetLookupIndex,
   usableLookupIndex,
   warmLookupIndex
 } from "./lib/lookup-state.mjs"
-import { packIndex, unpackIndex } from "./lib/lookup-load.mjs"
+import {
+  LookupCountMismatch,
+  packIndex,
+  unpackIndex
+} from "./lib/lookup-load.mjs"
 
 const base = "https://example.org/lookup/"
 
@@ -724,7 +731,7 @@ function referenceCandidates(rows, text, mode, keys, limit) {
 }
 
 // ---------------------------------------------------------------------------
-// The lifecycle, with an injected loader and clock.
+// The lifecycle, with an injected loader, clock and timer.
 {
   let now = 0
   let fingerprint = "one"
@@ -732,10 +739,17 @@ function referenceCandidates(rows, text, mode, keys, limit) {
   const lines = []
   let release
   let stopOnce = false
+  // Loads that fail, and with what, before loads succeed again.
+  let failures = []
+  // Fingerprints the catalogue gives before `fingerprint`, one per read,
+  // where an error is thrown instead.
+  let catalogues = []
   const loader = {
     async catalogue() {
       calls.catalogue++
-      return { fingerprint, sources: [] }
+      const next = catalogues.shift()
+      if (next instanceof Error) throw next
+      return { fingerprint: next ?? fingerprint, sources: [] }
     },
     async load(catalogue) {
       calls.load++
@@ -746,17 +760,43 @@ function referenceCandidates(rows, text, mode, keys, limit) {
           "query lookup-entries did not complete before the store stopped it"
         )
       }
+      if (failures.length) throw failures.shift()
       if (catalogue.fingerprint === "too big")
         throw new LookupIndexError("guard tripped")
       return buildIndex({ alpha: [entry("water")] }, catalogue.fingerprint)
     }
   }
+  // Timers that fire only when a test fires them: the retries, and the
+  // checks of the fingerprint while an index is ready.
+  let timers = []
+  const live = (kind) =>
+    timers.filter(
+      (timer) => timer.kind === kind && !timer.cleared && !timer.fired
+    )
+  const pending = () => live("retry")
+  const checkTimers = () => live("check")
+  const settle = () => new Promise((resolve) => setImmediate(resolve))
+  const fire = async (timer) => {
+    assert.ok(!timer.cleared && !timer.fired, "a live timer")
+    timer.fired = true
+    timer.callback()
+    await settle()
+  }
   const setUp = () => {
     resetLookupIndex()
+    timers = []
+    failures = []
+    catalogues = []
     configureLookupIndex({
       loader,
       now: () => now,
       checkIntervalMs: 30000,
+      setTimer: (callback, ms, kind) => {
+        const timer = { callback, ms, kind, cleared: false, fired: false }
+        timers.push(timer)
+        return timer
+      },
+      clearTimer: (timer) => (timer.cleared = true),
       log: (line) => lines.push(line)
     })
   }
@@ -769,7 +809,10 @@ function referenceCandidates(rows, text, mode, keys, limit) {
   assert.equal(warmLookupIndex(), null)
   assert.equal(await usableLookupIndex(), null)
   assert.equal(calls.load, 0)
-  assert.equal(lookupIndexStatus().state, "idle")
+  assert.equal(lookupIndexStatus().state, "off")
+  assert.equal(publicLookupStatus().state, "off")
+  assert.equal(pending().length, 0)
+  assert.equal(checkTimers().length, 0)
   if (previous === undefined) delete process.env.MATSCI_ONT_LOOKUP_INDEX
   else process.env.MATSCI_ONT_LOOKUP_INDEX = previous
   assert.equal(lookupIndexSwitchedOff({}), false)
@@ -787,6 +830,11 @@ function referenceCandidates(rows, text, mode, keys, limit) {
   const loaded = await first
   assert.equal(calls.load, 1)
   assert.equal(loaded.size, 1)
+  assert.deepEqual(
+    checkTimers().map((timer) => timer.ms),
+    [30000],
+    "a ready index is checked an interval later"
+  )
   assert.equal(await usableLookupIndex(), loaded)
   const logged = lines.filter((line) => line.includes("loaded"))
   assert.equal(logged.length, 1)
@@ -822,6 +870,10 @@ function referenceCandidates(rows, text, mode, keys, limit) {
   assert.equal(await usableLookupIndex(), null)
   await loadLookupIndex()
   assert.equal(lookupIndexStatus().state, "abandoned")
+  assert.equal(
+    publicLookupStatus().lastError,
+    "a description is one the index cannot reproduce"
+  )
   const loads = calls.load
   now += 30000
   await usableLookupIndex()
@@ -835,40 +887,158 @@ function referenceCandidates(rows, text, mode, keys, limit) {
   assert.equal((await loadLookupIndex()).fingerprint, "three")
 
   // A store that stops a load part way fails it for now, not for good: the
-  // index is not abandoned, and the load runs again an interval later.
+  // index is not abandoned, and a lookup that comes once the first retry is
+  // due starts the load, and clears the timer that would have.
   setUp()
   now = 0
   fingerprint = "one"
   stopOnce = true
   assert.equal(await warmLookupIndex(), null)
-  assert.equal(lookupIndexStatus().state, "waiting", "not abandoned")
+  assert.equal(lookupIndexStatus().state, "failed", "not abandoned")
   assert.ok(lines.some((line) => line.includes("not loaded")))
+  assert.ok(lines.at(-1).includes("tried again in 30 s"))
   const tried = calls.load
+  const [retry] = pending()
+  assert.equal(retry.ms, 30000)
   now += 29999
   assert.equal(await usableLookupIndex(), null)
-  assert.equal(calls.load, tried, "not again within the interval")
+  assert.equal(calls.load, tried, "not again before it is due")
   now += 1
   assert.equal(await usableLookupIndex(), null)
+  assert.equal(retry.cleared, true, "the lookup's load clears the timer")
   assert.equal((await loadLookupIndex())?.fingerprint, "one")
   assert.equal(calls.load, tried + 1)
+  assert.equal(pending().length, 0)
+
+  // With no lookups at all, the timer loads it again: after 30 seconds,
+  // then 60, then every 2 minutes, and once it loads nothing is pending.
+  // Each attempt is one load, and the status says what failed without
+  // saying what the error said.
+  assert.deepEqual(RETRY_DELAYS_MS, [30000, 60000, 120000])
+  setUp()
+  now = Date.parse("2026-09-26T17:03:00Z")
+  failures = [
+    new Error(
+      "query lookup-entries could not reach the store: connect ECONNREFUSED 127.0.0.1:3031"
+    ),
+    new Error(
+      "page 3 of 14 of chebi: query lookup-entries answered HTTP 500: java.lang.NullPointerException at /opt/matsci-ont/app"
+    ),
+    new Error(
+      "page 2 of 14 of chebi: query lookup-entries did not complete before the store stopped it (asked 3 times)"
+    ),
+    new Error("Failed to parse URL from http://127.0.0.1:3031/matsci-ont/query")
+  ]
+  const expected = [
+    [30000, "the store could not be reached"],
+    [60000, "the store answered HTTP 500"],
+    [120000, "the store stopped a query at its time limit"],
+    [120000, "the load failed"]
+  ]
+  const before = calls.load
+  const warmingUp = warmLookupIndex()
+  assert.equal(publicLookupStatus().state, "loading")
+  assert.equal(await warmingUp, null)
+  for (const [attempt, [delay, reason]] of expected.entries()) {
+    assert.equal(calls.load, before + attempt + 1, "one load an attempt")
+    const timersNow = pending()
+    assert.equal(timersNow.length, 1, "one timer at a time")
+    assert.equal(timersNow[0].ms, delay)
+    const status = publicLookupStatus()
+    assert.equal(status.state, "failed")
+    assert.equal(status.lastError, reason)
+    assert.equal(
+      status.nextAttemptAt,
+      new Date(now + delay).toISOString(),
+      "when it is tried again"
+    )
+    const text = JSON.stringify(status)
+    for (const secret of ["127.0.0.1", "3031", "/opt/", "java.lang", "page 3"])
+      assert.ok(!text.includes(secret), `${secret} is not public`)
+    assert.ok(lines.at(-1).includes(`tried again in ${delay / 1000} s`))
+    now += delay
+    await fire(timersNow[0])
+  }
+  assert.equal(calls.load, before + 5)
+  const recoveredIndex = await usableLookupIndex()
+  assert.ok(recoveredIndex, "loaded with no lookups")
+  assert.equal(pending().length, 0)
+  const ready = publicLookupStatus()
+  assert.deepEqual(ready, {
+    state: "ready",
+    entries: 1,
+    sources: ["alpha"],
+    loadedAt: new Date(now).toISOString(),
+    loadMs: ready.loadMs,
+    pages: null,
+    slowestPageMs: null,
+    lastError: null,
+    nextAttemptAt: null
+  })
+  assert.equal(typeof ready.loadMs, "number")
+  assert.equal(lookupIndexStatus().failures, 0, "the backoff starts over")
+
+  // A timer that fires while a load runs does not start a second one.
+  setUp()
+  failures = [new Error("query lookup-entries could not reach the store")]
+  await warmLookupIndex()
+  const [waitingTimer] = pending()
+  release = new Promise((resolve) => (open = resolve))
+  now += 30000
+  await usableLookupIndex()
+  assert.equal(publicLookupStatus().state, "loading")
+  const loadsNow = calls.load
+  // A timer cleared too late to stop its callback finds a load running.
+  waitingTimer.cleared = false
+  await fire(waitingTimer)
+  assert.equal(calls.load, loadsNow, "no second load")
+  open()
+  release = null
+  await settle()
+  assert.ok(await usableLookupIndex())
+
+  // A store replaced while a load reads it is loaded again at once, by the
+  // timer, with no lookup.
+  setUp()
+  catalogues = ["one", "two"]
+  fingerprint = "two"
+  assert.equal(await warmLookupIndex(), null)
+  assert.ok(lines.at(-1).includes("the store changed while loading"))
+  const [again] = pending()
+  assert.equal(again.ms, 0)
+  assert.equal(publicLookupStatus().state, "loading")
+  await fire(again)
+  assert.equal((await usableLookupIndex())?.fingerprint, "two")
+  fingerprint = "one"
+
+  // A reset stops a pending retry.
+  setUp()
+  failures = [new Error("query lookup-entries could not reach the store")]
+  await warmLookupIndex()
+  const [stopped] = pending()
+  resetLookupIndex()
+  assert.equal(stopped.cleared, true)
+  setUp()
 
   // While a load runs, one lookup at a time goes to SPARQL, and the others
   // wait for the load until it ends or their signal fires.
   setUp()
   release = new Promise((resolve) => (open = resolve))
   const warming = warmLookupIndex()
-  const sparql = await lookupIndexFor(new AbortController().signal)
+  const sparql = await lookupIndexFor({
+    signal: new AbortController().signal
+  })
   assert.equal(sparql.index, null, "the first lookup takes SPARQL's place")
   assert.equal(lookupIndexStatus().storeLookups, 1)
-  const patient = lookupIndexFor(new AbortController().signal)
+  const patient = lookupIndexFor({ signal: new AbortController().signal })
   const leaving = new AbortController()
-  const impatient = lookupIndexFor(leaving.signal)
+  const impatient = lookupIndexFor({ signal: leaving.signal })
   leaving.abort()
   assert.equal((await impatient).index, null, "a fired signal ends the wait")
   sparql.release()
   sparql.release()
   assert.equal(lookupIndexStatus().storeLookups, 0, "released once")
-  const next = await lookupIndexFor(new AbortController().signal)
+  const next = await lookupIndexFor({ signal: new AbortController().signal })
   assert.equal(next.index, null, "a free place is taken again")
   next.release()
   open()
@@ -896,6 +1066,145 @@ function referenceCandidates(rows, text, mode, keys, limit) {
   assert.equal(x.index, null)
   assert.equal(y.index, null)
   assert.equal(lookupIndexStatus().storeLookups, 0, "no place taken")
+
+  // While the index is ready, a timer confirms the store's fingerprint an
+  // interval after the last confirmation, with no lookup. The same store
+  // keeps the index, a lookup's confirmation moves the check later, a store
+  // that cannot answer is asked again a whole interval later, and a changed
+  // store is loaded again.
+  setUp()
+  now = 0
+  fingerprint = "one"
+  const held = await warmLookupIndex()
+  assert.ok(held)
+  let [check] = checkTimers()
+  const readsBefore = calls.catalogue
+  now += 30000
+  await fire(check)
+  assert.equal(calls.catalogue, readsBefore + 1, "one reading")
+  assert.equal(await usableLookupIndex(), held)
+  ;[check] = checkTimers()
+  assert.equal(check.ms, 30000, "the next an interval later")
+  now += 35000
+  assert.equal(await usableLookupIndex(), held)
+  assert.equal(calls.catalogue, readsBefore + 2, "a lookup confirmed it")
+  now += 5000
+  await fire(check)
+  assert.equal(calls.catalogue, readsBefore + 2, "not again so soon")
+  ;[check] = checkTimers()
+  assert.equal(check.ms, 25000, "an interval after the lookup's")
+  catalogues = [new Error("query lookup-fingerprint could not reach the store")]
+  now += 25000
+  await fire(check)
+  assert.equal(calls.catalogue, readsBefore + 3)
+  assert.equal(lookupIndexStatus().state, "ready", "kept while unconfirmed")
+  ;[check] = checkTimers()
+  assert.equal(check.ms, 30000, "a store that did not answer, an interval")
+  const loadsBeforeChange = calls.load
+  fingerprint = "two"
+  now += 30000
+  await fire(check)
+  assert.ok(lines.includes("lookup index: the store changed, loading it again"))
+  assert.equal(calls.load, loadsBeforeChange + 1, "loaded with no lookup")
+  assert.equal((await usableLookupIndex())?.fingerprint, "two")
+  assert.equal(checkTimers().length, 1)
+  const [lastCheck] = checkTimers()
+  resetLookupIndex()
+  assert.equal(lastCheck.cleared, true, "a reset stops the check")
+  fingerprint = "one"
+
+  // Pages that do not add up to the store's count, from a store that did
+  // not change while they were read, are the store's own: the index is
+  // abandoned with the counts in the log and a fixed phrase in the status,
+  // and the store is not read in full again until it changes.
+  setUp()
+  now = 0
+  failures = [
+    new LookupCountMismatch(
+      "the 1 pages of mdo held 90 descriptions and the store counts 89"
+    )
+  ]
+  const readsAtStart = calls.catalogue
+  assert.equal(await warmLookupIndex(), null)
+  assert.equal(calls.catalogue, readsAtStart + 2, "read again after it")
+  assert.equal(lookupIndexStatus().state, "abandoned")
+  assert.equal(
+    publicLookupStatus().lastError,
+    "the pages did not hold exactly the descriptions the store counts"
+  )
+  assert.equal(
+    lines.at(-1),
+    "lookup index: abandoned, lookups stay on SPARQL: the 1 pages of mdo held 90 descriptions and the store counts 89, and the store did not change while loading"
+  )
+  const mismatchLoads = calls.load
+  const [recheck] = pending()
+  assert.equal(recheck.ms, 120000)
+  now += 120000
+  await fire(recheck)
+  assert.equal(calls.load, mismatchLoads, "not loaded again")
+  fingerprint = "two"
+  now += 120000
+  await fire(pending()[0])
+  assert.equal((await usableLookupIndex())?.fingerprint, "two")
+  fingerprint = "one"
+
+  // Pages that do not add up because the store changed while they were
+  // read are loaded again at once, by the timer, not backed off.
+  setUp()
+  catalogues = ["one", "two"]
+  fingerprint = "two"
+  failures = [
+    new LookupCountMismatch(
+      "the 7 pages of alpha held 41 descriptions and the store counts 40"
+    )
+  ]
+  assert.equal(await warmLookupIndex(), null)
+  assert.equal(
+    lines.at(-1),
+    "lookup index: the store changed while loading, loading it again"
+  )
+  assert.equal(publicLookupStatus().state, "loading")
+  assert.equal(publicLookupStatus().lastError, null)
+  const [atOnce] = pending()
+  assert.equal(atOnce.ms, 0)
+  await fire(atOnce)
+  assert.equal((await usableLookupIndex())?.fingerprint, "two")
+  fingerprint = "one"
+
+  // A lookup that finds SPARQL's place taken waits for the load for at
+  // most a quarter of the time its deadline leaves, then uses SPARQL with
+  // the rest, counted beside the place. One whose deadline leaves time
+  // enough for the load has the index.
+  assert.equal(LOAD_WAIT_SHARE, 0.25)
+  setUp()
+  release = new Promise((resolve) => (open = resolve))
+  const slowLoad = warmLookupIndex()
+  const placeHolder = await lookupIndexFor({ deadline: Date.now() + 12000 })
+  assert.equal(placeHolder.index, null)
+  // The wait's timer does not hold the process open, which a server does.
+  const holdOpen = setTimeout(() => {}, 5000)
+  const waitStarted = Date.now()
+  const brief = await lookupIndexFor({ deadline: Date.now() + 400 })
+  const waitedMs = Date.now() - waitStarted
+  assert.equal(brief.index, null, "SPARQL once its wait is over")
+  assert.ok(waitedMs >= 90 && waitedMs < 350, `waited ${waitedMs} ms`)
+  assert.equal(publicLookupStatus().state, "loading", "the load still runs")
+  assert.equal(lookupIndexStatus().storeLookups, 2)
+  const late = await lookupIndexFor({ deadline: Date.now() - 1 })
+  assert.equal(late.index, null, "no time left, no wait")
+  late.release()
+  clearTimeout(holdOpen)
+  const roomy = lookupIndexFor({ deadline: Date.now() + 60000 })
+  open()
+  release = null
+  const slowIndex = await slowLoad
+  assert.ok(slowIndex)
+  const roomyAnswer = await roomy
+  assert.equal(roomyAnswer.index, slowIndex, "the load ended within its wait")
+  roomyAnswer.release()
+  brief.release()
+  placeHolder.release()
+  assert.equal(lookupIndexStatus().storeLookups, 0)
 
   // A load still running when the state is reset is ignored.
   setUp()

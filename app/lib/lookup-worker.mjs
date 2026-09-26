@@ -4,14 +4,17 @@
 
 import { parentPort, workerData } from "node:worker_threads"
 import { LookupIndexError } from "./lookup-index.mjs"
-import { loadIndex, packIndex } from "./lookup-load.mjs"
+import { loadIndex, LookupCountMismatch, packIndex } from "./lookup-load.mjs"
 
+// An error does not keep its class across threads, so its kind is sent
+// beside its message.
 try {
   const { packed, transfer } = packIndex(await loadIndex(workerData))
   parentPort.postMessage({ index: packed }, transfer)
 } catch (error) {
   parentPort.postMessage({
     error: error.message,
-    refused: error instanceof LookupIndexError
+    refused: error instanceof LookupIndexError,
+    mismatch: error instanceof LookupCountMismatch
   })
 }

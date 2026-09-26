@@ -354,7 +354,7 @@ export async function grounding(
   const term = text.slice(0, 200)
   const { index, release } =
     lookup !== "sparql" && indexReadsTerm(term)
-      ? await lookupIndexFor(budget.signal)
+      ? await lookupIndexFor(budget)
       : { index: null, release: () => {} }
   let rows
   try {

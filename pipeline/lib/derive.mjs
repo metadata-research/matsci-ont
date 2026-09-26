@@ -16,9 +16,8 @@
 // rather than restating or re-licensing their vocabulary.
 
 import { writeFile } from "node:fs/promises"
-import { createHash } from "node:crypto"
 import { runJena } from "../../shared/tools.mjs"
-import { baseUrl } from "../../shared/vocabulary.mjs"
+import { baseUrl, entryIri } from "../../shared/vocabulary.mjs"
 
 const SKOS = "http://www.w3.org/2004/02/skos/core#"
 const RDFS = "http://www.w3.org/2000/01/rdf-schema#"
@@ -295,8 +294,7 @@ export function definitionsTurtle(
       // The same publisher IRI may be described by several sources. A
       // record, not the entity, owns this particular definition and its
       // attribution; otherwise SPARQL joins mix text/version/licence values.
-      const digest = createHash("sha256").update(subject).digest("hex")
-      lines.push(`<${base}entries/${entry.key}/${digest}>`)
+      lines.push(`<${entryIri(entry.key, subject)}>`)
       lines.push(`    ont:entity <${subject}> ;`)
       lines.push(`    ont:fromSource ${source} ;`)
       lines.push(`    ont:sourceKey "${escapeLiteral(entry.key)}" ;`)

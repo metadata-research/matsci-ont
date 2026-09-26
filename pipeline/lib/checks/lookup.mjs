@@ -59,12 +59,19 @@ async function checkLoaded({ record }) {
     : []
   const expected = cleared.map((key) => `${key} ${counted.get(key)}`)
   const status = lookupIndexStatus()
+  const pages = (status.loadPages ?? [])
+    .map((source) => `${source.key} ${source.pages}`)
+    .join(", ")
+  const slowest = Math.max(
+    0,
+    ...(status.loadPages ?? []).map((source) => source.slowestMs)
+  )
   record(
     "the lookup index loads every cleared source's descriptions from the store",
     index !== null && held.join(", ") === expected.join(", "),
     index
-      ? `${index.size} entries in ${status.loadMs} ms: ${held.join(", ")}`
-      : `not loaded (${status.state})`
+      ? `${index.size} entries in ${status.loadMs} ms: ${held.join(", ")} (pages ${pages}, the slowest ${slowest} ms)`
+      : `not loaded (${status.state}: ${status.lastError ?? "no error"})`
   )
   return index
 }

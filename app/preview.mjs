@@ -90,7 +90,7 @@ export async function findCandidates(
   if (sources.length === 0) return { query: text, mode, sources: [] }
   const { index, release } =
     lookup !== "sparql" && indexReadsTerm(text)
-      ? await lookupIndexFor(options.signal)
+      ? await lookupIndexFor(options)
       : { index: null, release: () => {} }
   let rows
   try {

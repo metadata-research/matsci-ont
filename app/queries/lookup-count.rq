@@ -1,0 +1,9 @@
+# How many descriptions one source has in the definitions graph: the count
+# the catalogue page shows (catalogue.rq), with the key bound, so the store
+# reads one source's entries from its index and decodes nothing. The lookup
+# index sizes its pages by it, and adopts a load only when the pages
+# together held exactly this many descriptions.
+PREFIX ont: <@@ONT@@>
+SELECT (COUNT(*) AS ?entries) WHERE {
+  GRAPH <@@DEFS@@> { ?entry ont:sourceKey @@KEY@@ }
+}

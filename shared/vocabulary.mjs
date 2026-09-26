@@ -5,6 +5,8 @@
 // nor serving logic, so they are here rather than in either, which is what
 // keeps the two layers from importing each other.
 
+import { createHash } from "node:crypto"
+
 export function baseUrl() {
   const base =
     process.env.MATSCI_ONT_BASE_URL ?? "https://ego.cci.drexel.edu/ont/"
@@ -15,6 +17,18 @@ export function baseUrl() {
 // Source entities keep the IRI their publisher minted.
 export function vocabularyIri() {
   return `${baseUrl()}vocab#`
+}
+
+// One description record per source and publisher entity, named by the
+// source key and the SHA-256 of the entity's IRI. The build mints these and
+// the application's lookup index splits a source into pages by ranges of
+// them, so both read the rule from here.
+export function entryPrefix(key) {
+  return `${baseUrl()}entries/${key}/`
+}
+
+export function entryIri(key, subject) {
+  return `${entryPrefix(key)}${createHash("sha256").update(subject).digest("hex")}`
 }
 
 export function graphIris() {

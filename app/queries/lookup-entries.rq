@@ -1,6 +1,15 @@
-# Loads one source's descriptions into the application's lookup index
-# (app/lib/lookup-index.mjs), which answers the candidate and grounding
-# lookups without scanning the store for each request.
+# Loads one page of one source's descriptions into the application's
+# lookup index (app/lib/lookup-index.mjs), which answers the candidate and
+# grounding lookups without scanning the store for each request.
+#
+# A large source is read in pages so that no one query comes near the
+# store's 30 second limit on a slow host. @@PAGE@@ is empty for a source
+# read whole, and otherwise a FILTER on a range of the entry IRIs, which
+# lookup-load.mjs writes from the minting rule in shared/vocabulary.mjs.
+# Jena applies it to the sourceKey pattern alone, so the entity, label,
+# definition, version and licence lookups, the type test and LCASE run only
+# for the page's own entries. The ranges together cover every string once,
+# so the pages hold every description whatever the entry IRIs look like.
 #
 # Every pattern the two lookups join is read here: the label, the optional
 # definition, version and licence, and whether the entity is a class or
@@ -14,7 +23,7 @@
 # There is no ORDER BY, so the store streams rows as it finds them instead
 # of holding the whole answer. A streamed answer cut short at a line would
 # look complete, so the UNION adds one last row binding only ?end, and a
-# load that does not see it is discarded.
+# page that does not end with it is read again or fails the load.
 PREFIX ont: <@@ONT@@>
 PREFIX owl: <http://www.w3.org/2002/07/owl#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
@@ -22,7 +31,9 @@ PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
 SELECT ?iri ?label ?definition ?version ?license ?typed ?lower ?end WHERE {
   {
     GRAPH <@@DEFS@@> {
-      ?entry ont:sourceKey @@KEY@@ ; ont:entity ?iri ; ont:label ?label .
+      ?entry ont:sourceKey @@KEY@@ .
+      @@PAGE@@
+      ?entry ont:entity ?iri ; ont:label ?label .
       OPTIONAL { ?entry ont:definition ?definition }
       OPTIONAL { ?entry ont:sourceVersion ?version }
       OPTIONAL { ?entry ont:license ?license }

@@ -210,22 +210,49 @@ The candidate and grounding routes answer from an index of the store's
 descriptions that the application holds in memory, because a regular
 expression cannot use the store's indexes and every lookup would otherwise
 read every description. The application loads the index from the store in a
-worker thread when it starts. It reads the catalogue at most every 30
-seconds and loads the index again when the store has changed. A load takes
-some seconds, and longer on a busy host. While it runs, one lookup at a time
-is answered with SPARQL queries and the others wait for the index within
-their deadline. A term with a capital sigma (Σ) is always answered with
+worker thread when it starts. While the index is ready it reads the
+catalogue every 30 seconds, with or without lookups, and loads the index
+again when the store has changed. A load takes some seconds, and longer on a
+busy host. While it runs, one lookup at a time is answered with SPARQL
+queries at once. The others wait for the index for at most a quarter of the
+time their deadline leaves, and are then answered with SPARQL in the rest,
+so that a load longer than a deadline does not make them fail. A term with
+a capital sigma (Σ) is always answered with
 SPARQL, because Java lowercases that letter by a rule the index does not
 reproduce.
 
-A load that the store stops part way is tried again after 30 seconds. A load
-that meets data the index cannot hold, or that needs more than 192 MB, is
-abandoned, and lookups stay on SPARQL until the store changes. Each load
-writes one line to standard error with the entries, the time taken, the size
-of the index and the memory the load needed. The queries remain the
-reference, and `pnpm verify` compares the two on the built store. Set
+A load reads each source in pages of about 16,000 descriptions, sized from
+the store's count of that source's descriptions, so that no query comes near
+the store's 30 second limit, even on a host several times slower than a
+workstation. A source that size or smaller is read in one query. The load is
+kept only when the pages together held exactly the descriptions the store
+counts. When they did not, the application reads the catalogue again. A
+store that changed during the load is loaded again at once, and a store
+that did not change is abandoned, because its own descriptions do not add
+up to its count.
+
+A page the store stops is asked for again after 2 seconds and again after 8.
+A load that still fails is tried again by a timer after 30 seconds, then 60,
+then every 2 minutes, so the index recovers on a host that receives no
+lookups. A load that meets data the index cannot hold, or that needs more
+than 192 MB, is abandoned, and lookups stay on SPARQL until the store
+changes. Memory is what limits the index, not time: 192 MB holds about
+500,000 descriptions, a little over twice the current store, and a larger
+store needs that budget and the service's memory limits raised together.
+Each load writes one line to standard error with the entries, the
+time taken, the size of the index, the memory the load needed, and the
+number of pages with the slowest of them. The queries remain the reference,
+and `pnpm verify` compares the two on the built store. Set
 `MATSCI_ONT_LOOKUP_INDEX=off` in the application's environment to answer
 every lookup with SPARQL instead.
+
+`GET /lookup-status` says whether the index is `ready`, `loading`, `failed`
+(and when it is tried again), `abandoned` or `off`, with its entries and
+sources, when it loaded and how long that took. It answers from memory and
+asks the store nothing, so an installer or a health check can poll it while
+the index loads. A failure is reported as a fixed phrase for its kind, never
+as the error itself, and the answer holds no address, path or setting, so
+the route may be served publicly.
 
 ## Comparing two builds
 
