@@ -30,6 +30,7 @@ import { checkEndpoint } from "./lib/checks/endpoint.mjs"
 import { checkBrowse } from "./lib/checks/browse.mjs"
 import { checkChebi } from "./lib/checks/chebi.mjs"
 import { checkApi } from "./lib/checks/api.mjs"
+import { checkLookup } from "./lib/checks/lookup.mjs"
 import { checkDeterminism } from "./lib/checks/determinism.mjs"
 
 const WORK = join(ROOT, "build/verify-work")
@@ -124,6 +125,7 @@ try {
     await group("browse", checkBrowse, context)
     await group("api", checkApi, context)
     await group("ChEBI", checkChebi, context)
+    await group("lookup index", checkLookup, context)
   } finally {
     app.close()
   }

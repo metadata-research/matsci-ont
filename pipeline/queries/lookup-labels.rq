@@ -1,0 +1,11 @@
+# How Jena lowercases the labels the lookup index lowercases itself: LCASE
+# of the label, which grounding's first tier and the candidate order read,
+# and LCASE of the label trimmed as candidate-source.rq trims it, which
+# exact candidates read. pipeline/lib/checks/lookup.mjs fills in every label
+# that is not ASCII, capital sigmas among them, and compares each answer
+# with lowerLabel and trimmedLowerLabel in app/lib/lookup-index.mjs.
+SELECT ?i ?lower ?trimmedLower WHERE {
+  VALUES (?i ?label) { @@LABELS@@ }
+  BIND(LCASE(?label) AS ?lower)
+  BIND(LCASE(REPLACE(?label, "^[\\s\\p{Z}\\x{FEFF}]+|[\\s\\p{Z}\\x{FEFF}]+$", "")) AS ?trimmedLower)
+}

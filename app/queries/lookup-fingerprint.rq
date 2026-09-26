@@ -1,0 +1,24 @@
+# What the application's lookup index is a copy of. The index holds the
+# definitions graph, which the build derives from the sources the catalogue
+# describes, so the index is current while these values are unchanged. The
+# catalogue graph is small, so this is cheap enough to read every 30 seconds.
+#
+# ont:definitionsDigest is optional: no build states it yet.
+PREFIX ont: <@@ONT@@>
+PREFIX dcterms: <http://purl.org/dc/terms/>
+PREFIX void: <http://rdfs.org/ns/void#>
+SELECT ?key ?graph ?republishable ?sha256 ?version ?triples ?mirrorOf
+       ?mirroredFrom ?digest WHERE {
+  GRAPH <@@CATALOG@@> {
+    ?source ont:sourceKey ?key .
+    OPTIONAL { ?source ont:namedGraph ?graph }
+    OPTIONAL { ?source ont:republishable ?republishable }
+    OPTIONAL { ?source ont:sha256 ?sha256 }
+    OPTIONAL { ?source dcterms:hasVersion ?version }
+    OPTIONAL { ?source void:triples ?triples }
+    OPTIONAL { ?source ont:mirrorOf ?mirrorOf }
+    OPTIONAL { ?source ont:mirroredFrom ?mirroredFrom }
+    OPTIONAL { ?source ont:definitionsDigest ?digest }
+  }
+}
+ORDER BY ?key

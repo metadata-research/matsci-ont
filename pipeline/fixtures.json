@@ -101,5 +101,41 @@
     "water": "http://purl.obolibrary.org/obo/CHEBI_15377",
     "waterDefinition": "An oxygen hydride consisting of an oxygen atom that is covalently bonded to two hydrogen atoms",
     "shared": "http://purl.obolibrary.org/obo/CHEBI_18248"
+  },
+  "lookup": {
+    "comment": "The terms the lookup index is compared with the SPARQL queries on, each as grounding from ChEBI with limit 5 and from every source with limit 10, and as exact, similar and broad similar candidates. They cover the grounding fixtures, the terms of the 2026-09-26 latency report, broad prefixes, and punctuation, Unicode and case corners. Labels and words drawn from the index with the seed are added to them. The budgets are for the index as held in memory and its in-process lookups.",
+    "terms": [
+      "energy",
+      "sintering",
+      "sinter",
+      "water",
+      "WATER",
+      "density functional theory",
+      "density functional theory (dft)",
+      "molecular dynamics",
+      "quartz",
+      "titanium",
+      "acid",
+      "Fe(III)",
+      "iron(III) oxide",
+      "a",
+      "e",
+      "2",
+      "hydro",
+      "CO",
+      "+",
+      "(",
+      "--",
+      "ſulfur",
+      "β-carotene",
+      "Ångström",
+      "5'-nucleotide",
+      "(R)-lactic acid"
+    ],
+    "sampledLabels": 16,
+    "sampledWords": 10,
+    "seed": 20260926,
+    "maxIndexMegabytes": 150,
+    "maxP95Milliseconds": 50
   }
 }

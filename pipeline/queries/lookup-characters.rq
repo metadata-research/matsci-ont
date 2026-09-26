@@ -1,0 +1,14 @@
+# How Jena reads each character the lookup index reads: LCASE, the word
+# class of candidate-source.rq, and Java's \b between the character and its
+# neighbours, each probed where it stands in a short text.
+# pipeline/lib/checks/lookup.mjs fills the characters from the index and
+# compares every answer with the rules in app/lib/lookup-index.mjs.
+SELECT ?c ?lower ?nonWord ?beforeA ?afterBase ?afterA ?afterSpace WHERE {
+  VALUES (?c ?pattern) { @@CHARACTERS@@ }
+  BIND(LCASE(?c) AS ?lower)
+  BIND(REGEX(?c, "^[^\\p{L}\\p{N}_]$", "i") AS ?nonWord)
+  BIND(REGEX(CONCAT(?c, "a"), CONCAT("^", ?pattern, "\\ba"), "i") AS ?beforeA)
+  BIND(REGEX(CONCAT("b", ?c, "a"), CONCAT("^b", ?pattern, "\\ba"), "i") AS ?afterBase)
+  BIND(REGEX(CONCAT("a", ?c), CONCAT("^a\\b", ?pattern), "i") AS ?afterA)
+  BIND(REGEX(CONCAT(" ", ?c), CONCAT("^ \\b", ?pattern), "i") AS ?afterSpace)
+}

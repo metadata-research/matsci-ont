@@ -1,0 +1,18 @@
+# The sources a grounding lookup may draw on: catalogue.rq without the entry
+# counts. Those count every description in the store, which grounding never
+# reads, so this keeps catalogue.rq's required patterns and drops the count.
+PREFIX dcterms: <http://purl.org/dc/terms/>
+PREFIX void:    <http://rdfs.org/ns/void#>
+PREFIX ont:     <@@ONT@@>
+SELECT ?key ?title ?republishable ?mirrorOf WHERE {
+  GRAPH <@@CATALOG@@> {
+    ?src ont:sourceKey ?key ;
+         dcterms:title ?title ;
+         dcterms:license ?license ;
+         ont:namedGraph ?graphIri ;
+         ont:republishable ?republishable ;
+         void:triples ?triples .
+    OPTIONAL { ?src ont:mirrorOf ?mirrorOf }
+  }
+}
+ORDER BY ?key

@@ -16,6 +16,7 @@ import { grounding } from "./data.mjs"
 import { findCandidates, getHierarchy } from "./preview.mjs"
 import { RejectedInput } from "./lib/terms.mjs"
 import { handleMcpRequest, MAX_REQUEST_BYTES } from "./mcp.mjs"
+import { warmLookupIndex } from "./lib/lookup-state.mjs"
 
 const require = createRequire(import.meta.url)
 
@@ -53,7 +54,10 @@ const ASSETS = {
   ]
 }
 
-async function handle(url) {
+// `signal` fires when the client goes away before its answer is sent, so
+// this process stops waiting on the store calls made for it. The store
+// itself stops them at the deadline each call carries.
+async function handle(url, { signal } = {}) {
   if (url.pathname === "/") {
     return { status: 200, type: "text/html", body: await cataloguePage() }
   }
@@ -61,7 +65,8 @@ async function handle(url) {
     const limit = url.searchParams.get("limitPerSource")
     const answer = await findCandidates(url.searchParams.get("q"), {
       limitPerSource: limit === null ? undefined : Number(limit),
-      mode: url.searchParams.get("mode") ?? "exact"
+      mode: url.searchParams.get("mode") ?? "exact",
+      signal
     })
     return {
       status: 200,
@@ -71,7 +76,8 @@ async function handle(url) {
   }
   if (url.pathname === "/hierarchy") {
     const answer = await getHierarchy(url.searchParams.get("iri"), {
-      source: url.searchParams.get("source")
+      source: url.searchParams.get("source"),
+      signal
     })
     return {
       status: 200,
@@ -88,7 +94,8 @@ async function handle(url) {
     const answer = await grounding(url.searchParams.get("q"), {
       sources: sources ? sources.split(",").filter(Boolean) : undefined,
       limit: limit === null ? undefined : Number(limit),
-      includeMirror: url.searchParams.get("includeMirror") === "1"
+      includeMirror: url.searchParams.get("includeMirror") === "1",
+      signal
     })
     return {
       status: 200,
@@ -215,10 +222,14 @@ export function startApp(port = DEFAULT_APP_PORT) {
     // down. A rejected identifier is the client's error and answers 404; a
     // failure to reach the store is the server's and answers 502.
     let pathname = request.url
+    const disconnected = new AbortController()
+    response.once("close", () => {
+      if (!response.writableFinished) disconnected.abort()
+    })
     try {
       const url = new URL(request.url, "http://localhost")
       pathname = url.pathname
-      const result = await handle(url)
+      const result = await handle(url, { signal: disconnected.signal })
       response
         .writeHead(result.status, {
           "Content-Type": `${result.type}; charset=utf-8`,
@@ -245,6 +256,14 @@ export function startApp(port = DEFAULT_APP_PORT) {
           .end(errorPage(404, "No such page."))
         return
       }
+      // A client that stopped waiting cancelled the store calls made for
+      // it. That is not a store failure, and there is no one to answer.
+      if (disconnected.signal.aborted) {
+        process.stderr.write(
+          `${pathname}: the client closed the connection before the answer was ready\n`
+        )
+        return
+      }
       process.stderr.write(`${pathname}: ${error.message}\n`)
       if (JSON_ROUTES.test(pathname)) {
         response
@@ -265,11 +284,16 @@ export function startApp(port = DEFAULT_APP_PORT) {
   // Rejects rather than emitting an unhandled error event, so a caller that
   // started other processes can stop them. A port already in use would
   // otherwise kill the process where it stands.
+  //
+  // The lookup index starts loading once the port is held. Until it is
+  // ready the candidate and grounding routes answer one lookup at a time
+  // from SPARQL and let the others wait for it (lib/lookup-state.mjs).
   return new Promise((resolve, reject) => {
     const failed = (error) => reject(error)
     server.once("error", failed)
     server.listen(port, "127.0.0.1", () => {
       server.removeListener("error", failed)
+      warmLookupIndex()
       resolve(server)
     })
   })
