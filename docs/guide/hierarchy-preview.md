@@ -1,7 +1,8 @@
 # Hierarchy preview API
 
-These read-only JSON routes serve a compact term picker and parent panel.
-Only sources cleared for publication and not marked as mirrors are eligible.
+These read-only JSON routes serve a compact term picker and a panel of
+direct parents and named mappings. Only sources cleared for publication
+and not marked as mirrors are eligible.
 They read the existing description index and asserted source graphs; no
 additional ontology build or reasoning step is needed.
 
@@ -21,7 +22,8 @@ The response is `{query, mode, sources}`, with one group for each matching sourc
         "key": "chebi",
         "title": "ChEBI, Chemical Entities of Biological Interest (CORE)",
         "version": "254",
-        "license": "CC-BY-4.0"
+        "license": "CC-BY-4.0",
+        "kind": "ontology"
       },
       "candidates": [
         {
@@ -60,17 +62,24 @@ The search term must be nonblank text of at most 200 characters, without
 control characters after trimming surrounding whitespace. Selection identity is the pair of source key and entity
 IRI; similar labels in different sources do not assert equivalence.
 
+`kind` states what the source's own graph declares itself to be: `ontology`
+when the graph holds an `owl:Ontology`, `vocabulary` when it holds a
+`skos:ConceptScheme` and no `owl:Ontology`, and `other` when it holds
+neither. An OWL ontology that also declares a concept scheme is an ontology.
+The same `source` object, with `kind`, appears in the hierarchy answer.
+
 ## Read direct parents
 
 `GET /hierarchy?source=chebi&iri=http%3A%2F%2Fpurl.obolibrary.org%2Fobo%2FCHEBI_18248`
 
 The response has these fields:
 
-- `source`: the same `{key, title, version?, license}` metadata as a search group.
+- `source`: the same `{key, title, version?, license, kind}` metadata as a search group.
 - `entity`: `{iri, label}`, taken from the selected source's index record.
 - `parents`: an array of `{iri, label?, predicate, direction}`.
 - `truncated`: whether more than 50 parent relationships exist.
 - `hasAnonymousSuperclasses`: whether an asserted `rdfs:subClassOf` object is a blank node.
+- `mappings`: an array of `{iri, label?, predicate, direction}`, at most 20.
 
 Both parameters are required. The source must be eligible and must index the
 selected entity as a class or concept. Source keys use lowercase letters,
@@ -93,6 +102,31 @@ inferred placements, equivalence axioms and anonymous class expressions are
 not returned as named parents. An empty parent list means no named parent
 was asserted; it does not establish that the entity is an ontology root.
 
+Mappings are the named mapping assertions of that source about the entity.
+`direction` is `outgoing` when the entity is the subject of the assertion
+and `incoming` when it is the object:
+
+| Predicate                                        | Assertion                               |
+| ------------------------------------------------ | --------------------------------------- |
+| `http://www.w3.org/2004/02/skos/core#exactMatch` | the two concepts are an exact match     |
+| `http://www.w3.org/2004/02/skos/core#closeMatch` | the two concepts are a close match      |
+| `http://www.w3.org/2002/07/owl#equivalentClass`  | the two classes are declared equivalent |
+
+Only a named IRI at the other end qualifies. An `owl:equivalentClass` whose
+object is a class expression, which is a blank node, is not returned. Today
+every equivalence axiom in the OWL sources is of that form, so the usable
+mappings are the SKOS links. Mappings are read from the selected source's
+own graph, and a label is present only when that source indexes the mapped
+entity. The array holds at most 20 mappings, in order by predicate and then
+IRI, and reports no truncation.
+
+NIST models a synonym as a bare concept, typed and labelled but in no scheme
+and under no broader concept, which the real concept names by
+`skos:exactMatch`. The synonym therefore has no parent and one incoming
+mapping, and the concept lists each synonym as an outgoing mapping. A mapping
+is what the source asserts. It does not make the mapped entity a candidate,
+and selection identity remains the pair of source key and entity IRI.
+
 ## Bounds and errors
 
 Each request shares a 12-second deadline across its store queries. The store
@@ -100,7 +134,8 @@ is sent the deadline and stops a query when it passes, and the application
 stops waiting as soon as the caller disconnects. Query results and final JSON
 responses are capped at 128 KiB. More than 32 eligible sources is an error
 rather than a silently incomplete source list. Per-source candidate caps and
-the parent cap use an extra result row to detect truncation.
+the parent cap use an extra result row to detect truncation. The mapping cap
+keeps the first 20 mappings in their fixed order and reports no truncation.
 
 Candidate searches are answered from an index of the descriptions that the
 application holds in memory. The index loads when the application starts

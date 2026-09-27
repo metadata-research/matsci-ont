@@ -1,7 +1,17 @@
 # Preview metadata does not need whole-index entry counts.
+#
+# The kind is read from the source's own graph rather than the catalogue:
+# a graph holding an owl:Ontology is an ontology, one holding a
+# skos:ConceptScheme and no owl:Ontology is a vocabulary, and one holding
+# neither is other. Each EXISTS is one index lookup in that graph.
 PREFIX ont: <@@ONT@@>
 PREFIX dcterms: <http://purl.org/dc/terms/>
-SELECT ?key ?title ?version ?license ?graph WHERE {
+PREFIX owl: <http://www.w3.org/2002/07/owl#>
+PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+SELECT ?key ?title ?version ?license ?graph
+  (EXISTS { GRAPH ?graph { ?declared a owl:Ontology } } AS ?ontology)
+  (EXISTS { GRAPH ?graph { ?declared a skos:ConceptScheme } } AS ?scheme)
+WHERE {
   GRAPH <@@CATALOG@@> {
     ?source ont:sourceKey ?key ; dcterms:title ?title ;
       dcterms:license ?license ; ont:namedGraph ?graph ; ont:republishable true .

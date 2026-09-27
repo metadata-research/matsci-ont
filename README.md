@@ -203,7 +203,9 @@ without definitions, by exact label with a separate result cap for each
 source. Explicit `mode=similar` explores non-exact whole-word label matches;
 it does not assert that the results represent equivalent or nearest concepts.
 `GET /hierarchy?source=...&iri=...` returns that source's direct asserted
-named parents. [The hierarchy preview guide](docs/guide/hierarchy-preview.md)
+named parents and its named mappings, and each source states whether its
+graph declares an ontology or a vocabulary.
+[The hierarchy preview guide](docs/guide/hierarchy-preview.md)
 describes these compact JSON contracts, source selection and bounds.
 
 The candidate and grounding routes answer from an index of the store's

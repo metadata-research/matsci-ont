@@ -1,6 +1,8 @@
 // Small read-only contracts for an external application's hierarchy panel.
 // One shared deadline covers every query in a request; no ontology-wide
-// ancestor traversal or raw entity/blank-node export is needed.
+// ancestor traversal or raw entity/blank-node export is needed. A hierarchy
+// answer carries the entity's direct parents and its named mappings, both
+// read from the selected source's own graph.
 //
 // Candidates are matched by the in-memory lookup index when it is ready and
 // current, with candidates.rq and candidate-source.rq as the reference it
@@ -27,6 +29,7 @@ export const PREVIEW_MAX_BYTES = 128 * 1024
 export const PREVIEW_TIMEOUT_MS = 12000
 const MAX_SOURCES = 32
 const PARENT_LIMIT = 50
+const MAPPING_LIMIT = 20
 
 function requestOptions(signal) {
   return {
@@ -46,8 +49,18 @@ function sourceInfo(source) {
     key: source.key,
     title: source.title,
     ...(source.version ? { version: source.version } : {}),
-    license: source.license
+    license: source.license,
+    kind: source.kind
   }
+}
+
+// What the source's own graph declares itself to be. An owl:Ontology
+// declaration decides it, since an OWL ontology may declare a concept
+// scheme as well.
+function sourceKind(row) {
+  if (row.ontology.value === "true") return "ontology"
+  if (row.scheme.value === "true") return "vocabulary"
+  return "other"
 }
 
 async function previewSources(options) {
@@ -59,8 +72,20 @@ async function previewSources(options) {
     title: row.title.value,
     version: row.version?.value,
     license: row.license.value,
+    kind: sourceKind(row),
     graph: checkIri(row.graph.value)
   }))
+}
+
+// One parent or mapping row as the answer states it. A label is present
+// only when the selected source indexes the other entity.
+function relation(row) {
+  return {
+    iri: row.iri.value,
+    ...(row.label ? { label: row.label.value } : {}),
+    predicate: row.predicate.value,
+    direction: row.direction.value
+  }
 }
 
 // `lookup` is for verification and tests: "sparql" skips the index, and
@@ -184,17 +209,20 @@ export async function getHierarchy(iri, { source, signal } = {}) {
     )
   if (entities.length !== 1)
     throw new Error("The source has conflicting indexed labels.")
-  const parents = await select("hierarchy-parents", substitutions, options)
+  // Parents and mappings are independent reads of the same graph under the
+  // same deadline, so they run together. The parent query asks for one row
+  // past its cap to report truncation; the mapping query is capped at its
+  // limit and reports none.
+  const [parents, mappings] = await Promise.all([
+    select("hierarchy-parents", substitutions, options),
+    select("hierarchy-mappings", substitutions, options)
+  ])
   return boundedAnswer({
     source: sourceInfo(selected),
     entity: { iri, label: entities[0].label.value },
-    parents: parents.slice(0, PARENT_LIMIT).map((row) => ({
-      iri: row.iri.value,
-      ...(row.label ? { label: row.label.value } : {}),
-      predicate: row.predicate.value,
-      direction: row.direction.value
-    })),
+    parents: parents.slice(0, PARENT_LIMIT).map(relation),
     truncated: parents.length > PARENT_LIMIT,
-    hasAnonymousSuperclasses: entities[0].anonymous.value === "true"
+    hasAnonymousSuperclasses: entities[0].anonymous.value === "true",
+    mappings: mappings.slice(0, MAPPING_LIMIT).map(relation)
   })
 }

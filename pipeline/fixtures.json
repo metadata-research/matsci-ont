@@ -95,6 +95,16 @@
     "expectFirst": "energy",
     "mirrorTerm": "sintering"
   },
+  "hierarchy": {
+    "comment": "The hierarchy preview reads a source's named mappings in both directions from its own graph. NIST models a synonym as a bare concept that the real concept names by skos:exactMatch: the synonym here is one of the four that the concept names. Kinds are what each source's graph declares, an owl:Ontology or a skos:ConceptScheme, and the term is one both listed sources match exactly.",
+    "source": "nist-imrr",
+    "synonym": "https://data.nist.gov/od/dm/nmrr/vocab/?tema=725",
+    "concept": "https://data.nist.gov/od/dm/nmrr/vocab/?tema=300",
+    "expectConceptLabel": "annealing and homogenization",
+    "expectOutgoing": 4,
+    "term": "annealing",
+    "kinds": { "nist-imrr": "vocabulary", "emmo": "ontology" }
+  },
   "chebi": {
     "triples": 3382033,
     "entries": 218444,
