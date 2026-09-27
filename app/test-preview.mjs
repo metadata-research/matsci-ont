@@ -25,6 +25,7 @@ import {
 const base = "https://example.org/preview/"
 const rdfs = "http://www.w3.org/2000/01/rdf-schema#"
 const skos = "http://www.w3.org/2004/02/skos/core#"
+const owl = "http://www.w3.org/2002/07/owl#"
 const dataset = new Map()
 const iri = (name) => `${base}${name}`
 function add(graph, triple) {
@@ -157,6 +158,61 @@ for (let index = 0; index < 52; index += 1) {
   triple("alpha", "many-parents", "rdfs:subClassOf", `<${iri(name)}>`)
 }
 triple("alpha", "many-parents", "rdfs:subClassOf", "[ a owl:Class ]")
+
+// What each source's graph declares itself to be: alpha declares both an
+// ontology and a concept scheme, and the ontology decides; nist declares a
+// scheme alone; beta declares neither.
+triple("alpha", "alpha-ontology", "a", "owl:Ontology")
+triple("alpha", "alpha-scheme", "a", "skos:ConceptScheme")
+triple("nist", "nist-scheme", "a", "skos:ConceptScheme")
+
+// Named mappings in alpha's graph, in both directions. The equivalent class
+// expression, the mapping asserted in beta, the one in an uncatalogued graph
+// and the inferred one are not mappings alpha asserts, and a label is read
+// only from alpha's own index.
+entity("alpha", "equivalent-class", "Equivalent class")
+entity("alpha", "equivalent-subject", "Equivalent subject")
+entity("alpha", "close-match", "Close match")
+entity("beta", "other-source-match", "Label available only in beta")
+triple("alpha", "shared", "owl:equivalentClass", `<${iri("equivalent-class")}>`)
+triple(
+  "alpha",
+  "shared",
+  "owl:equivalentClass",
+  `[ a owl:Class ; owl:unionOf ( <${iri("alpha-parent")}> <${iri("leaf")}> ) ]`
+)
+triple(
+  "alpha",
+  "equivalent-subject",
+  "owl:equivalentClass",
+  `<${iri("shared")}>`
+)
+triple("alpha", "shared", "skos:closeMatch", `<${iri("close-match")}>`)
+triple("alpha", "shared", "skos:exactMatch", `<${iri("other-source-match")}>`)
+triple("beta", "shared", "skos:exactMatch", `<${iri("beta-match")}>`)
+triple("uncatalogued", "shared", "skos:exactMatch", `<${iri("rogue-match")}>`)
+add(
+  inferredGraphFor("alpha"),
+  `<${iri("shared")}> skos:exactMatch <${iri("inferred-match")}> .`
+)
+
+// NIST models a synonym as a bare concept, typed and labelled but in no
+// scheme and under no broader concept, that the real concept names by
+// skos:exactMatch. The synonym side reads that link incoming.
+entity("nist", "nist-heat", "heat treatment", "skos:Concept")
+triple("nist", "nist-heat", "skos:inScheme", `<${iri("nist-scheme")}>`)
+triple("nist", "nist-heat", "skos:broader", `<${iri("nist-material")}>`)
+entity("nist", "nist-synonym", "annealing", "skos:Concept")
+triple("nist", "nist-heat", "skos:exactMatch", `<${iri("nist-synonym")}>`)
+
+// More named mappings than the answer carries, to show the cap keeps the
+// first of a fixed order.
+entity("nist", "many-matches", "Many matches", "skos:Concept")
+for (let index = 0; index < 22; index += 1) {
+  const name = `match-${String(index).padStart(2, "0")}`
+  entity("nist", name, `Match ${index}`, "skos:Concept")
+  triple("nist", "many-matches", "skos:exactMatch", `<${iri(name)}>`)
+}
 
 const originalFetch = globalThis.fetch
 const work = await mkdtemp(join(tmpdir(), "matsci-ont-preview-test-"))
@@ -365,7 +421,8 @@ ${[...dataset]
       source: {
         key: "nist",
         title: "nist source",
-        license: "https://example.org/license/nist"
+        license: "https://example.org/license/nist",
+        kind: "vocabulary"
       },
       candidates: [
         { iri: iri("nist-material"), label: "material concept", match: "label" }
@@ -376,8 +433,14 @@ ${[...dataset]
       key: "alpha",
       title: "alpha source",
       version: "1.0",
-      license: "https://example.org/license/alpha"
+      license: "https://example.org/license/alpha",
+      kind: "ontology"
     })
+    assert.equal(
+      defaultGroups.get("beta").source.kind,
+      "other",
+      "a graph declaring neither an ontology nor a scheme is other"
+    )
     assert.deepEqual(defaultGroups.get("beta").candidates[0], {
       iri: iri("beta-material-phrase"),
       label: "other material",
@@ -513,6 +576,35 @@ ${[...dataset]
         }
       ].sort((a, b) => a.iri.localeCompare(b.iri))
     )
+    // Mappings are alpha's own named assertions in both directions, in
+    // one fixed order: by predicate, then IRI. The class expression, the
+    // mappings in beta, the uncatalogued graph and the inferred graph are
+    // absent, and a label comes only from alpha's index.
+    assert.deepEqual(alpha.mappings, [
+      {
+        iri: iri("equivalent-class"),
+        label: "Equivalent class",
+        predicate: `${owl}equivalentClass`,
+        direction: "outgoing"
+      },
+      {
+        iri: iri("equivalent-subject"),
+        label: "Equivalent subject",
+        predicate: `${owl}equivalentClass`,
+        direction: "incoming"
+      },
+      {
+        iri: iri("close-match"),
+        label: "Close match",
+        predicate: `${skos}closeMatch`,
+        direction: "outgoing"
+      },
+      {
+        iri: iri("other-source-match"),
+        predicate: `${skos}exactMatch`,
+        direction: "outgoing"
+      }
+    ])
     const beta = await hierarchy(iri("shared"), { source: "beta" })
     assert.deepEqual(beta.entity, { iri: iri("shared"), label: "Beta shared" })
     assert.equal(beta.hasAnonymousSuperclasses, false)
@@ -524,16 +616,70 @@ ${[...dataset]
         [iri("common-parent"), "Beta common parent"]
       ].sort()
     )
+    assert.deepEqual(beta.mappings, [
+      {
+        iri: iri("beta-match"),
+        predicate: `${skos}exactMatch`,
+        direction: "outgoing"
+      }
+    ])
     const leaf = await hierarchy(iri("leaf"), { source: "alpha" })
     assert.deepEqual(leaf.parents, [])
     assert.equal(leaf.hasAnonymousSuperclasses, false)
     assert.equal(leaf.truncated, false)
+    assert.deepEqual(leaf.mappings, [])
     const concept = await hierarchy(iri("nist-material"), { source: "nist" })
     assert.deepEqual(concept.entity, {
       iri: iri("nist-material"),
       label: "material concept"
     })
     assert.deepEqual(concept.parents, [])
+    assert.deepEqual(concept.mappings, [])
+    assert.equal(concept.source.kind, "vocabulary")
+
+    // A bare synonym concept has no parent, and reads the concept that
+    // names it as an incoming exact match; that concept reads the synonym
+    // as an outgoing one, each with the other's label.
+    const synonym = await hierarchy(iri("nist-synonym"), { source: "nist" })
+    assert.deepEqual(synonym.entity, {
+      iri: iri("nist-synonym"),
+      label: "annealing"
+    })
+    assert.deepEqual(synonym.parents, [])
+    assert.deepEqual(synonym.mappings, [
+      {
+        iri: iri("nist-heat"),
+        label: "heat treatment",
+        predicate: `${skos}exactMatch`,
+        direction: "incoming"
+      }
+    ])
+    const heat = await hierarchy(iri("nist-heat"), { source: "nist" })
+    assert.deepEqual(heat.parents, [
+      {
+        iri: iri("nist-material"),
+        label: "material concept",
+        predicate: `${skos}broader`,
+        direction: "outgoing"
+      }
+    ])
+    assert.deepEqual(heat.mappings, [
+      {
+        iri: iri("nist-synonym"),
+        label: "annealing",
+        predicate: `${skos}exactMatch`,
+        direction: "outgoing"
+      }
+    ])
+    const matches = await hierarchy(iri("many-matches"), { source: "nist" })
+    assert.deepEqual(
+      matches.mappings.map((mapping) => mapping.iri),
+      Array.from({ length: 20 }, (_, index) =>
+        iri(`match-${String(index).padStart(2, "0")}`)
+      ),
+      "the mapping cap keeps the first 20 of the fixed order"
+    )
+    assert.equal(matches.truncated, false)
 
     const many = await hierarchy(iri("many-parents"), { source: "alpha" })
     assert.equal(many.parents.length, 50)
@@ -595,7 +741,7 @@ ${[...dataset]
   assert.deepEqual(withIndex, withoutIndex)
 
   console.log(
-    "OK: preview candidates and direct hierarchy retain source scope, caps, and guards, with and without the lookup index"
+    "OK: preview candidates, direct hierarchy and named mappings retain source scope, kinds, caps, and guards, with and without the lookup index"
   )
 } finally {
   resetLookupIndex()

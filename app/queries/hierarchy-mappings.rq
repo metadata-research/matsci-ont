@@ -1,0 +1,35 @@
+# The named mappings a source asserts for an entity, in both directions.
+#
+# Only these three predicates count as mappings, and only a named IRI at
+# the other end qualifies: every owl:equivalentClass in the OWL sources
+# today points at a blank node, which is a class expression rather than a
+# mapping anything can select. NIST models a synonym as a bare concept that
+# the real concept names by skos:exactMatch, so the synonym side reads the
+# link incoming. Labels come from the selected source's own index records.
+# The order is fixed so the cap keeps the same rows every time.
+PREFIX ont: <@@ONT@@>
+PREFIX owl: <http://www.w3.org/2002/07/owl#>
+PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+SELECT DISTINCT ?iri ?label ?predicate ?direction WHERE {
+  {
+    GRAPH <@@GRAPH@@> {
+      <@@IRI@@> ?predicate ?iri .
+      VALUES ?predicate { skos:exactMatch skos:closeMatch owl:equivalentClass }
+    }
+    BIND("outgoing" AS ?direction)
+  } UNION {
+    GRAPH <@@GRAPH@@> {
+      ?iri ?predicate <@@IRI@@> .
+      VALUES ?predicate { skos:exactMatch skos:closeMatch owl:equivalentClass }
+    }
+    BIND("incoming" AS ?direction)
+  }
+  FILTER(isIRI(?iri))
+  OPTIONAL {
+    GRAPH <@@DEFS@@> {
+      ?entry ont:entity ?iri ; ont:sourceKey @@KEY@@ ; ont:label ?label
+    }
+  }
+}
+ORDER BY ?predicate ?iri ?direction
+LIMIT 20

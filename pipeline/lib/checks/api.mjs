@@ -1,10 +1,79 @@
-// The machine-facing surface: the grounding route, the MCP endpoint, and
-// the interface the application is bound to.
+// The machine-facing surface: the grounding route, the hierarchy preview,
+// the MCP endpoint, and the interface the application is bound to.
 
 export async function checkApi(context) {
   await checkGrounding(context)
+  await checkHierarchy(context)
   await checkMcp(context)
   checkBinding(context)
+}
+
+// The hierarchy preview's named mappings, read in both directions from the
+// source's own graph, and the kind each source's graph declares. NIST
+// models a synonym as a bare concept that the real concept names by
+// skos:exactMatch, so the synonym reads one incoming mapping and the
+// concept reads each synonym as an outgoing one.
+async function checkHierarchy({ record, page, fixtures }) {
+  const {
+    source,
+    synonym,
+    concept,
+    expectConceptLabel,
+    expectOutgoing,
+    term,
+    kinds
+  } = fixtures.hierarchy
+  const exactMatch = "http://www.w3.org/2004/02/skos/core#exactMatch"
+  const read = async (iri) =>
+    JSON.parse(
+      (await page(`/hierarchy?source=${source}&iri=${encodeURIComponent(iri)}`))
+        .text
+    )
+
+  const bare = await read(synonym)
+  const incoming = bare.mappings ?? []
+  record(
+    "a bare synonym concept reads the concept that names it as an incoming exact match",
+    bare.parents?.length === 0 &&
+      incoming.length === 1 &&
+      incoming[0].iri === concept &&
+      incoming[0].label === expectConceptLabel &&
+      incoming[0].predicate === exactMatch &&
+      incoming[0].direction === "incoming",
+    JSON.stringify(bare.mappings ?? bare.error)
+  )
+
+  const named = await read(concept)
+  const outgoing = named.mappings ?? []
+  record(
+    "the concept reads each synonym as an outgoing exact match with its label",
+    outgoing.length === expectOutgoing &&
+      outgoing.every(
+        (mapping) =>
+          mapping.predicate === exactMatch &&
+          mapping.direction === "outgoing" &&
+          typeof mapping.label === "string"
+      ),
+    `${outgoing.length} mappings: ${outgoing.map((mapping) => mapping.label).join(", ")}`
+  )
+
+  // The kind comes with every source object, in candidate groups and in the
+  // hierarchy answer alike.
+  const candidates = JSON.parse(
+    (await page(`/candidates?q=${encodeURIComponent(term)}`)).text
+  )
+  const found = Object.fromEntries(
+    (candidates.sources ?? []).map((group) => [
+      group.source.key,
+      group.source.kind
+    ])
+  )
+  record(
+    "each source states the kind its graph declares",
+    Object.entries(kinds).every(([key, kind]) => found[key] === kind) &&
+      named.source?.kind === kinds[source],
+    JSON.stringify(found)
+  )
 }
 
 // Definition text a caller can put in front of a reader, with what it needs
