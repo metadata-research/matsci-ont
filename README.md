@@ -272,6 +272,7 @@ serving two datasets.
 | Path                                                       | Serves                                                                                                      |
 | ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
 | `/`, `/source/{key}`, `/entity`, `/search`, `/graph/{key}` | The browse pages, described in the [browsing guide](docs/guide/browsing.md)                                 |
+| `/graph/{key}.json`                                        | The nodes and edges the graph view draws, as JSON                                                           |
 | `/grounding`                                               | Definition text for a term, described in the [grounding guide](docs/guide/grounding.md)                     |
 | `/candidates`, `/hierarchy`                                | Term lookup and direct parents, described in the [hierarchy preview guide](docs/guide/hierarchy-preview.md) |
 | `/lookup-status`                                           | The state of the lookup index, described below                                                              |
