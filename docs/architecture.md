@@ -1,8 +1,9 @@
 # Architecture
 
 How the code is arranged and why, for someone about to change it.
-`README.md` covers building and running it, and `docs/guide/` covers using
-it.
+`README.md` covers getting it running, [Building the store](build.md) and
+[Sources and the manifest](sources.md) cover the pipeline and its input,
+and `docs/guide/` covers using it.
 
 ## Three layers
 
@@ -50,7 +51,7 @@ Every SPARQL query is a `.rq` file, in `app/queries/` for the application
 and `pipeline/queries/` for verification. `shared/queries.mjs` loads them
 and fills `@@TOKEN@@` placeholders in a single pass over the template.
 
-A query in a file can be read on its own, carries the comment that explains
+A query in a file can be read on its own, contains the comment that explains
 its shape, and can be pasted into an endpoint unchanged when it misbehaves.
 The single pass is a security property. Substitution token by token let a
 value inserted early, such as the search text of a caller, be read as a
@@ -146,11 +147,21 @@ again at once. A store that did not change holds descriptions the index
 cannot account for, and the index is abandoned until the store changes.
 
 A load that fails for a reason the store may not repeat, such as a stopped
-query or a store out of reach, is tried again by a timer as well as by a
-lookup that arrives when an attempt is due, so a host that receives no
-lookups still recovers. `/lookup-status` reports the state from memory, so
-an installer can wait for the index without starting the SPARQL lookups
-that would compete with the load.
+query or a store out of reach, is tried again by a timer after 30 seconds,
+then 60, then every 2 minutes, and by a lookup that arrives when an attempt
+is due, so a host that receives no lookups still recovers.
+
+`GET /lookup-status` reports the state of the index (`ready`, `loading`,
+`failed`, `abandoned` or `off`) with its entries and sources, when it
+loaded, how long the load took, and when a failed load is tried again. It
+answers from memory, so an installer or a health check can wait for the
+index without
+starting the SPARQL lookups that would compete with the load. A failure
+appears as a fixed phrase for its kind, and the answer holds no address,
+path or setting, so the route may be served publicly. Each load also writes
+one line to standard error with the entries, the time taken, the size of
+the index, the memory the load needed, and the number of pages with the
+slowest of them.
 
 While a load runs, lookups are held back from SPARQL, since each is a scan
 that slows the load, but only for part of their deadline. One lookup at a
