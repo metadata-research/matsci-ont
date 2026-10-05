@@ -115,13 +115,14 @@ that is a pass over some 220,000 descriptions per request, because no TDB2
 index can serve a case-insensitive word match. `app/lib/lookup-index.mjs`
 holds the same descriptions in memory and answers in milliseconds.
 
-The index is derived and never authoritative. `app/lib/lookup-worker.mjs`
-streams it from the running store with `lookup-entries.rq` in a worker
-thread when the application starts, and `app/lib/lookup-state.mjs` loads it
-again when the catalogue fingerprint changes, which a timer reads every 30
-seconds while the index is ready. Nothing is written back and nothing ships
-beside the store, so the store remains the single source of truth and the
-index on a host always describes the store that host serves.
+The index is derived and never authoritative. `app/lib/lookup-load.mjs`
+streams it from the running store with `lookup-entries.rq`, in a worker
+thread (`app/lib/lookup-worker.mjs`) that starts with the application, and
+`app/lib/lookup-state.mjs` loads it again when the catalogue fingerprint
+changes, which a timer reads every 30 seconds while the index is ready.
+Nothing is written back and nothing ships beside the store, so the store
+remains the single source of truth and the index on a host always describes
+the store that host serves.
 
 A large source is read in pages, because Fuseki stops any query at 30
 seconds and a host with slow disks and little memory read ChEBI in one
@@ -140,11 +141,13 @@ A page counts only once it has arrived whole, and a page the store stops is
 asked for again after 2 seconds and again after 8. A load is kept only when
 its pages held exactly the descriptions the store counts, so a page missed
 or read twice fails the load and leaves the index unchanged. The count is
-one read of an index and stays fast, but it includes descriptions without a
-label, which the pages leave out, so the catalogue is read again to settle
-pages that do not add up. A store that changed during the load is loaded
-again at once. A store that did not change holds descriptions the index
-cannot account for, and the index is abandoned until the store changes.
+one read of an index and stays fast. Pages that do not add up to it mean
+that the store changed during the load or that its own descriptions do not
+add up, such as one with two labels, and only the catalogue can tell which,
+so the catalogue is read again after every load. A store that changed during
+the load is loaded again at once. A store that did not change holds
+descriptions the index cannot account for, and the index is abandoned until
+the store changes.
 
 A load that fails for a reason the store may not repeat, such as a stopped
 query or a store out of reach, is tried again by a timer after 30 seconds,
@@ -155,13 +158,13 @@ is due, so a host that receives no lookups still recovers.
 `failed`, `abandoned` or `off`) with its entries and sources, when it
 loaded, how long the load took, and when a failed load is tried again. It
 answers from memory, so an installer or a health check can wait for the
-index without
-starting the SPARQL lookups that would compete with the load. A failure
-appears as a fixed phrase for its kind, and the answer holds no address,
-path or setting, so the route may be served publicly. Each load also writes
-one line to standard error with the entries, the time taken, the size of
-the index, the memory the load needed, and the number of pages with the
-slowest of them.
+index without starting the SPARQL lookups that would compete with the load.
+A failure appears as a fixed phrase for its kind, and the answer holds no
+address, path or setting, so the route may be served publicly. Each
+successful load writes one line to standard error with the entries, the time
+taken, the size of the index, the memory the load needed and the heap in
+use, and the number of pages with the slowest of them. A failed or abandoned
+load writes one line with the reason.
 
 While a load runs, lookups are held back from SPARQL, since each is a scan
 that slows the load, but only for part of their deadline. One lookup at a
@@ -173,9 +176,11 @@ load would fail where SPARQL would have answered.
 Pages bound the time of each query, and memory bounds the index. The load
 peaks at about 92 MB for the current 222,925 descriptions and grows with
 them. It is abandoned past 192 MB, about 500,000 descriptions, which keeps
-the process under the memory limit of the service. A larger store needs the
-budget in `lookup-load.mjs`, the heap of the worker and the limits of the
-service unit raised together, on a host with the memory to spare.
+the process below the 384 MB at which the host service unit, defined in
+`matsci-ops`, starts to reclaim memory. A larger store needs the budget in
+`lookup-load.mjs`, the heap of the worker and the `MemoryHigh` and
+`MemoryMax` limits of the unit raised together, on a host with the memory to
+spare.
 
 The index reproduces the matching rules of Jena in JavaScript, namely its
 ASCII-only `\b`, its case-insensitive comparison, `LCASE` and the `ORDER BY`

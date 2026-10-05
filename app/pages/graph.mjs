@@ -173,7 +173,7 @@ export async function graphPage(key) {
 ${mirrorBanner(source)}
 <p><a href="${base}/source/${attr(key)}">Back to the source page</a></p>
 <p><input id="filter" type="search" placeholder="Filter nodes by label" disabled> <span id="note" class="mark" aria-live="polite">Loading hierarchy…</span></p>
-<p class="graph-controls"><button id="zoom-in" type="button" disabled>Zoom in</button> <button id="zoom-out" type="button" disabled>Zoom out</button> <button id="fit-graph" type="button" disabled>Fit overview</button> <span class="mark">Drag to pan. Filter to center a matching term.</span></p>
+<p class="graph-controls"><button id="zoom-in" type="button" disabled>Zoom in</button> <button id="zoom-out" type="button" disabled>Zoom out</button> <button id="fit-graph" type="button" disabled>Fit overview</button> <span class="mark">Drag to pan. ${needsOverview(source) ? "Filter to center a matching term." : "Filter to highlight matching terms."}</span></p>
 <div id="cy" data-source="${attr(key)}" data-base="${attr(base)}"></div>
 <script src="${base}/assets/cytoscape.min.js"></script>
 <script src="${base}/assets/dagre.min.js"></script>

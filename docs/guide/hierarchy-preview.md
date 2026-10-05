@@ -56,12 +56,13 @@ is consulted, and definitions are neither searched nor required.
 
 Only indexed OWL and RDFS classes and SKOS concepts qualify, so properties
 never appear. The mode filter applies before the cap of each source, which
-is 5 by default and 20 at most. A group sets `truncated` when it has further
+is 5 by default. `limitPerSource` must be a whole number from 1 to 20, and
+any other value is rejected. A group sets `truncated` when it has further
 matches in that mode, and a source with no matches is absent. An empty
 result is `{query, mode, sources: []}`, and any other mode is rejected.
 
-The search term must be nonblank text of at most 200 characters with no
-control characters once surrounding whitespace is trimmed. A selection is
+Once surrounding whitespace is trimmed, the search term must be nonblank,
+at most 200 characters long and free of ASCII control characters. A selection is
 identified by the pair of source key and entity IRI, and similar labels in
 different sources do not assert equivalence.
 
@@ -151,7 +152,10 @@ against the store, which gives the same answer in seconds where the index
 takes milliseconds. The others wait for the index for at most a quarter of
 the time left before the deadline, then run as SPARQL queries in the time
 that remains. A search that the deadline overtakes fails with HTTP 502, as
-any other store failure does.
+any other store failure does. A term containing a capital sigma (Σ) always
+runs as a SPARQL query, and so does every search when the application runs
+with `MATSCI_ONT_LOOKUP_INDEX=off`. `GET /lookup-status` reports whether
+the index is ready.
 
 Every response is JSON, errors included. Invalid input or a selection
 outside the permitted scope returns HTTP 400 with `{error}`. Store failures,
