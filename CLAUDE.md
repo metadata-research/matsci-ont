@@ -6,9 +6,10 @@ SPARQL endpoint, a browse application, JSON lookup routes and an MCP
 endpoint. It consumes ontologies other groups publish. It does not author
 them and it does not mint identifiers for their entities.
 
-Read `README.md` for how to build and run it, and `docs/architecture.md`
-for how the code is arranged and why. Read both before a structural change,
-because the build enforces the layering below.
+Read `README.md` for how to build and run it, `docs/architecture.md` for
+how the code is arranged and why, and `docs/build.md` and `docs/sources.md`
+for the pipeline and the manifest. Read the README and the architecture
+before a structural change, because the build enforces the layering below.
 
 ## The layering
 
@@ -91,7 +92,7 @@ behind a dead-proxy guard. `SERVICE` is disabled on the endpoint.
 ## Planning and project state
 
 The phase model, the decisions already closed and the rolling record of
-what is built live in private documentation of the research group, mirrored
+what is built are in private documentation of the research group, mirrored
 to the git-ignored `docs-internal/` for those who have it. If that folder
 is present, read `docs-internal/` first. If it is not, this file,
-`README.md` and `docs/architecture.md` are the complete public picture.
+`README.md` and `docs/` are the complete public picture.
