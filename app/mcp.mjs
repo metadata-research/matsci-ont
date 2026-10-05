@@ -234,12 +234,12 @@ export function buildMcpServer() {
     {
       title: "Find entities",
       description:
-        "Search labels and definitions across every source, matching whole words. Returns each hit with its source, version and licence.",
+        "Search labels and definitions across every source for the term where a word starts. Returns each hit with its source, version and licence.",
       inputSchema: {
         q: z
           .string()
           .min(1)
-          .describe("Term to search for, matched on word boundaries"),
+          .describe("Term to search for, matched where a word starts"),
         sources: z
           .array(z.string())
           .optional()

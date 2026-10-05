@@ -1,5 +1,6 @@
-// The MatSci-ONT application server: browse pages now, the MCP endpoint and
-// grounding route in their phases. Loopback only, read-only, one process.
+// The MatSci-ONT application server: the browse pages, the grounding,
+// candidate and hierarchy routes, and the MCP endpoint. Loopback only,
+// read-only, one process.
 //
 //   node app/app.mjs            (expects Fuseki per MATSCI_ONT_QUERY_URL)
 //   pnpm dev                    (starts Fuseki and this together)
