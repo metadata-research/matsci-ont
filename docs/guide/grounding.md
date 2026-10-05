@@ -8,12 +8,12 @@ a reader what published ontologies already say.
 GET /grounding?q=energy
 ```
 
-| Parameter       | Meaning                                                           |
-| --------------- | ----------------------------------------------------------------- |
-| `q`             | The term to look up. Required.                                    |
-| `limit`         | Most results to return, 10 by default and 50 at most.             |
-| `sources`       | Comma-separated source keys to search within, from the catalogue. |
-| `includeMirror` | Set to 1 to include mirrored sources.                             |
+| Parameter       | Meaning                                                                 |
+| --------------- | ----------------------------------------------------------------------- |
+| `q`             | The term to look up, of which the first 200 characters count. Required. |
+| `limit`         | Most results to return, 10 by default and 50 at most.                   |
+| `sources`       | Comma-separated source keys to search within, from the catalogue.       |
+| `includeMirror` | Set to 1 to include mirrored sources.                                   |
 
 The answer is JSON.
 
@@ -51,14 +51,16 @@ search page does. `sinter` finds `sintering` but not `presintering`.
 The store decides where a word starts by the rule of Java regular
 expressions, in which only the ASCII letters, the digits and the underscore
 are word characters. A term that begins with one of them matches at the
-start of the text or after any other character. So `water` matches in
-`sea water` and `(water)`, and also inside `Äwater`, but not in `_water` or
-`2water`. A term that begins with any other character, such as `α`, matches
-only directly after an ASCII letter, a digit or an underscore, as in
-`10α-amino acid`, and never at the start of the text or after a space. So
-`α-amino acid` does not find a definition that mentions "an α-amino acid".
-Spell such a term out, as in `alpha-amino acid`. A label that is exactly
-the term is found whatever it begins with.
+start of the text or after any other character. So `water` matches in `sea
+water` and `(water)`, and also inside `Äwater`, but not in `_water` or
+`2water`. A combining accent that follows a letter or digit also counts as
+part of the word, so `water` does not match directly after an `é` written as
+`e` and a combining accent. A term that begins with any other character,
+such as `α`, matches only directly after an ASCII letter, a digit or an
+underscore, as in `10α-amino acid`, and never at the start of the text or
+after a space. So `α-amino acid` does not find a definition that mentions
+"an α-amino acid". Spell such a term out, as in `alpha-amino acid`. A label
+that is exactly the term is found whatever it begins with.
 
 Results come back in three tiers, and within a tier by source key, then
 label, then entity IRI, so the same question returns the same order.
@@ -81,8 +83,11 @@ adds nothing, and the answer says so in a `note`.
 
 ## Errors
 
-Every answer is JSON, errors included. A missing term, or a `limit` or
-source key that is not valid, returns HTTP 400 with `{error}`. A store that
+Every answer is JSON, errors included. A missing term, a `limit` that is not
+a whole number from 1 to 50, or a source key that is not well formed returns
+HTTP 400 with `{error}`. Keys are separated by commas alone, so `chebi,
+pmdco` is refused. A well-formed key that names no cleared source is
+ignored, and when no key remains the answer has no results. A store that
 fails or misses the 12-second deadline returns HTTP 502, and a method other
 than GET or HEAD returns HTTP 405.
 

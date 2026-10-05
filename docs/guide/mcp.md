@@ -13,18 +13,20 @@ pnpm dev
 ```
 
 ```
-http://localhost:3100/mcp
+http://127.0.0.1:3100/mcp
 ```
 
 For Claude Code, add the server with this command.
 
 ```bash
-claude mcp add --transport http matsci-ont http://localhost:3100/mcp
+claude mcp add --transport http matsci-ont http://127.0.0.1:3100/mcp
 ```
 
-The endpoint takes POST requests of at most 1 MiB and answers other methods
-with HTTP 405. A client must accept both `application/json` and
-`text/event-stream`, as every Model Context Protocol client does.
+The application listens on 127.0.0.1 only, so use that address where
+`localhost` might resolve to the IPv6 loopback first. The endpoint takes
+POST requests of at most 1 MiB and answers other methods with HTTP 405. A
+client must accept both `application/json` and `text/event-stream`, as every
+Model Context Protocol client does.
 
 ## The tools
 
@@ -37,12 +39,14 @@ with HTTP 405. A client must accept both `application/json` and
 | `sparql_query`  | A read-only SPARQL 1.1 query over the whole store                                                 |
 
 Every tool except `sparql_query` names the source of each answer, its
-licence and, where the source has one, its version. Licences differ
-between sources, and an answer drawn from one has to credit it. A
-`sparql_query` result holds only the columns the query selects, so name the
-graph a result came from when the answer needs crediting. A parent listed
-under `inferredParents` was derived by an OWL reasoner at build time and is
-not asserted by the source.
+licence and, where the source has one, its version. Licences differ between
+sources, and an answer drawn from one has to credit it. A `sparql_query`
+result holds only the columns the query selects, so name the graph a result
+came from when the answer needs crediting. Unlike the grounding route, the
+tools reach every loaded source, including one not cleared for public
+serving, and each `find_entities` hit says so in `clearedForPublication`. A
+parent listed under `inferredParents` was derived by an OWL reasoner at
+build time and is not asserted by the source.
 
 ## What the tools refuse
 
@@ -53,15 +57,19 @@ capped answer says so in its `truncated` field. A CONSTRUCT or DESCRIBE
 answer has no row cap, so give such a query a LIMIT. Any answer larger than
 2 MB is refused outright.
 
-An unknown IRI or source key comes back as a plain message saying what was
-not found.
+An unknown IRI, or a `get_source` key that names no source, comes back as a
+plain message saying what was not found. `get_entity` refuses a `source`
+that does not describe the IRI. In `find_entities`, a well-formed key that
+names no source matches nothing.
 
 ## An example
 
-A request for "the definition of sintering in every ontology you have"
-leads a client to run `find_entities`, which returns the matching entries
-of every source with their licences. The client can then call `get_entity`
-on any of those IRIs for the full record.
+A request for "the definition of sintering in every ontology you have" leads
+a client to run `find_entities`, which returns the matching entries with
+their licences, 20 by default and at most 200. Results are ordered by tier,
+then source key, so when `truncated` is true a client raises `limit` or
+names `sources` to reach the rest. The client can then call `get_entity` on
+any of those IRIs for the full record.
 
 ## Selecting a source description
 
