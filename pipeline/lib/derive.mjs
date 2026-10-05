@@ -63,8 +63,9 @@ const literal = (binding) => {
   return text
 }
 
-// English first, then any other tagged language, then an untagged literal.
-// PMDco carries German alongside English, and NIST tags some labels en-US.
+// English first, then a regional English tag, then an untagged literal, then
+// any other language. PMDco carries German alongside English, and NIST tags
+// some labels en-US.
 function preferred(candidates) {
   if (candidates.length === 0) return null
   const language = (binding) => (binding["xml:lang"] ?? "").toLowerCase()

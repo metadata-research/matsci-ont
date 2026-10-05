@@ -1,8 +1,6 @@
-All verification complete. Final report follows.
-
 # EMMO 1.0.3 Pinned Import Closure — MatSci-ONT Phase 7
 
-Working area: `/tmp/claude-1000/-home-chris-dev/8d31cd45-6239-4260-8f1d-5068132225be/scratchpad/emmo-exp/` (script `closure.sh`, downloads in `files/`, ntriples in `nt/`, validate logs in `logs/`, manifest `manifest.tsv`, squashed builds in `extra/`).
+Working area: a temporary scratch directory, `emmo-exp/` (script `closure.sh`, downloads in `files/`, ntriples in `nt/`, validate logs in `logs/`, manifest `manifest.tsv`, squashed builds in `extra/`).
 
 ## 1. Resolution pattern (verified)
 
@@ -14,7 +12,7 @@ Working area: `/tmp/claude-1000/-home-chris-dev/8d31cd45-6239-4260-8f1d-50681322
 
 ## 2. Closure (fixpoint reached, no anomalies)
 
-12 seeds + 13 transitive = **25 modules, 14,800 triples, 1,790,693 bytes**. Zero foreign imports (nothing outside `w3id.org/emmo`), zero non-1.0.3 version references, zero download failures. Tool: Apache Jena RIOT 6.2.0, `JAVA_HOME=/home/chris/dev/systemada/matsci-ont/tools/jdk-21.0.12.1+1-jre`.
+12 seeds + 13 transitive = **25 modules, 14,800 triples, 1,790,693 bytes**. Zero foreign imports (nothing outside `w3id.org/emmo`), zero non-1.0.3 version references, zero download failures. Tool: Apache Jena RIOT 6.2.0, `JAVA_HOME=tools/jdk-21.0.12.1+1-jre`.
 
 Manifest (module IRI = `https://w3id.org/emmo/1.0.3/` + path; raw URL = `https://raw.githubusercontent.com/emmo-repo/EMMO/1.0.3/` + path + `.ttl`):
 
@@ -77,8 +75,8 @@ reference/workflow          -> perspectives/reductionistic, reference/agency
 All 25 files: exit code 0, **0 warnings, 0 errors** — every validate log is empty. Warning-free ingest is safe for the whole closure. Command used per file:
 
 ```
-JAVA_HOME=/home/chris/dev/systemada/matsci-ont/tools/jdk-21.0.12.1+1-jre \
-/home/chris/dev/systemada/matsci-ont/tools/apache-jena-6.2.0/bin/riot --validate <file>.ttl
+JAVA_HOME=tools/jdk-21.0.12.1+1-jre \
+tools/apache-jena-6.2.0/bin/riot --validate <file>.ttl
 ```
 
 Triple counts were taken as `riot --output=ntriples <file> | wc -l` (equivalent to `--count` for these files, and it doubles as the imports-extraction source: `grep '<http://www.w3.org/2002/07/owl#imports>'`).
@@ -100,4 +98,4 @@ Triple counts were taken as `riot --output=ntriples <file> | wc -l` (equivalent 
 - UNCONFIRMED: that the 12-IRI seed list exactly matches CHAMEO 1.0.3's imports — taken as given from the task, not re-derived from a CHAMEO 1.0.3 file.
 - UNCONFIRMED: whether the 2026-08-20 Pages rebuild changed `versions/1.0.3/emmo.ttl` bytes vs earlier builds (only the current bytes were hashed; the commit-pinned URL above freezes them).
 
-Reproduction script: `/tmp/claude-1000/-home-chris-dev/8d31cd45-6239-4260-8f1d-5068132225be/scratchpad/emmo-exp/closure.sh`; machine-readable manifest (`module<TAB>rawURL<TAB>sha256<TAB>bytes<TAB>triples<TAB>warns<TAB>errs<TAB>first-importer`): `/tmp/claude-1000/-home-chris-dev/8d31cd45-6239-4260-8f1d-5068132225be/scratchpad/emmo-exp/manifest.tsv`.
+Reproduction script: `emmo-exp/closure.sh` in the scratch directory; machine-readable manifest (`module<TAB>rawURL<TAB>sha256<TAB>bytes<TAB>triples<TAB>warns<TAB>errs<TAB>first-importer`): committed beside this record as `emmo-closure-1.0.3.tsv`.

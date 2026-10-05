@@ -7,8 +7,8 @@
 # query tools already corrected.
 #
 #   0  the label is the term
-#   1  the label contains the term as a whole word
-#   2  only the definition contains it
+#   1  the label contains the term at the start of a word
+#   2  only the definition contains it at the start of a word
 #
 # An entry with no definition cannot ground anything, so the pattern
 # requires one rather than leaving it optional.

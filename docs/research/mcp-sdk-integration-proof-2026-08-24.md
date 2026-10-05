@@ -1,8 +1,8 @@
-Proof servers are down (the remaining `server.mjs` matches are unrelated Codex plugin processes; ports 3197–3199 are free). Final report follows.
-
 # MCP endpoint for MatSci-ONT's plain `node:http` server — empirical report
 
-Everything below marked **PROVEN** was executed on this machine (Node v24.19.0, pnpm 10.34.5) in `/tmp/claude-1000/-home-chris-dev/8d31cd45-6239-4260-8f1d-5068132225be/scratchpad/mcp-sdk-exp/`. Files: `server.mjs` (JSON-mode proof), `server2.mjs` (SSE-mode + structuredContent proof), `client.mjs`.
+This record dates from 2026-08-24, and the endpoint as built departs from it in three ways. `sparql_query` also answers CONSTRUCT and DESCRIBE, `get_entity` and `get_source` take `source` and `key` arguments, and the application reads the request body itself under a 1 MiB ceiling. `app/mcp.mjs` and `docs/guide/mcp.md` describe the endpoint as built.
+
+Everything below marked **PROVEN** was executed on this machine (Node v24.19.0, pnpm 10.34.5) in a temporary scratch directory, `mcp-sdk-exp/`. Files: `server.mjs` (JSON-mode proof), `server2.mjs` (SSE-mode + structuredContent proof), `client.mjs`.
 
 ## 1. Package facts (PROVEN via `npm view`, 2026-08-24)
 
@@ -150,4 +150,4 @@ Normal pages verified alongside: `GET /` → 200 HTML; `POST /` → 405 `read-on
 
 **UNCONFIRMED extras (not exercised):** `annotations: { readOnlyHint: true, idempotentHint: true }` on each tool (field exists in `registerTool` typings; serialization to `tools/list` untested); behavior of Claude Code / claude.ai as clients against this endpoint (only the SDK's own client + curl tested); zero-arg `registerTool` without `inputSchema`; the repo's `src/examples/server/simpleStatelessStreamableHttp.ts` referenced by the README as the canonical stateless example (docs/ not shipped in the tarball; not fetched).
 
-Scratch artifacts: `/tmp/claude-1000/-home-chris-dev/8d31cd45-6239-4260-8f1d-5068132225be/scratchpad/mcp-sdk-exp/{server.mjs,server2.mjs,client.mjs,package.json,pnpm-lock.yaml}`.
+Scratch artifacts: `mcp-sdk-exp/{server.mjs,server2.mjs,client.mjs,package.json,pnpm-lock.yaml}`.
