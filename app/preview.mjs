@@ -94,11 +94,11 @@ export async function findCandidates(
   q,
   { limitPerSource, mode = "exact", signal, lookup = "auto" } = {}
 ) {
+  const text = typeof q === "string" ? q.trim() : ""
   if (
-    typeof q !== "string" ||
-    !q.trim() ||
-    q.length > 200 ||
-    [...q.trim()].some((character) => {
+    !text ||
+    text.length > 200 ||
+    [...text].some((character) => {
       const code = character.charCodeAt(0)
       return code < 32 || code === 127
     })
@@ -106,7 +106,6 @@ export async function findCandidates(
     throw new RejectedInput(
       "A candidate search needs a term of at most 200 characters."
     )
-  const text = q.trim()
   if (mode !== "exact" && mode !== "similar")
     throw new RejectedInput("Candidate mode must be exact or similar.")
   const limit = checkLimit(limitPerSource, 5, 20)

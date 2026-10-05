@@ -305,6 +305,10 @@ ${[...dataset]
       "request guards run before any store query"
     )
 
+    // The length limit counts the trimmed term, not surrounding whitespace.
+    const padded = await findCandidates(`  ${"x".repeat(200)}\n`)
+    assert.equal(padded.query, "x".repeat(200))
+
     // The no-source fast path also identifies the requested match mode.
     const fixtureFetch = globalThis.fetch
     globalThis.fetch = async () =>

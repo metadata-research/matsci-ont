@@ -61,9 +61,8 @@ any other value is rejected. A group sets `truncated` when it has further
 matches in that mode, and a source with no matches is absent. An empty
 result is `{query, mode, sources: []}`, and any other mode is rejected.
 
-The search term may have at most 200 characters, counting any surrounding
-whitespace. Once trimmed, it must be nonblank and contain no ASCII control
-characters. A selection is
+Once surrounding whitespace is trimmed, the search term must be nonblank,
+at most 200 characters long and free of ASCII control characters. A selection is
 identified by the pair of source key and entity IRI, and similar labels in
 different sources do not assert equivalence.
 
