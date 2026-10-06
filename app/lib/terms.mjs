@@ -4,7 +4,8 @@
 // that needs only the guards does not pull a HTTP client in with them.
 
 // Thrown when client-supplied input is not a shape the store can hold. The
-// server turns it into a 404, distinct from a 502 for a store failure.
+// server answers it with a 404 page, or a 400 on a JSON route, distinct from
+// a 502 for a store failure.
 export class RejectedInput extends Error {}
 
 // An IRI substitution goes between angle brackets, so anything that could

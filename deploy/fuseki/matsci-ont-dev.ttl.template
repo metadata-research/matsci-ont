@@ -4,11 +4,11 @@
 # matsci-ops/deploy/fuseki/config.ttl: federated query off, a 30 s query
 # timeout, and a union default graph so a query without GRAPH sees every
 # source at once. It differs in two ways, both deliberate. The location is
-# the local build directory, substituted by pipeline/serve.mjs because an
+# the local build directory, substituted by shared/fuseki.mjs because an
 # assembler cannot resolve a path relative to the repository. And there is
-# no Graph Store Protocol endpoint: the local store is built by the ingest
-# pipeline, so nothing writes over HTTP. The mirror writer of Phase 4 adds a
-# gsp_rw endpoint behind a credential when it lands.
+# no Graph Store Protocol endpoint: the ingest pipeline builds the local
+# store, the mirrored MatSci-SAM graphs included, so nothing writes over
+# HTTP.
 #
 # Endpoints, under /matsci-ont:
 #   query, sparql   SPARQL 1.1 Query, read only

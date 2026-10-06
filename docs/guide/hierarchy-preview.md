@@ -1,16 +1,17 @@
 # Hierarchy preview API
 
 These read-only JSON routes serve a compact term picker and a panel of
-direct parents and named mappings. Only sources cleared for publication
-and not marked as mirrors are eligible.
-They read the existing description index and asserted source graphs; no
-additional ontology build or reasoning step is needed.
+direct parents and named mappings. Only sources that are cleared for
+publication and are not mirrors qualify. The routes read the description
+index and the asserted source graphs, so they need no extra build or
+reasoning step.
 
 ## Find candidates
 
 `GET /candidates?q=iron%20atom&limitPerSource=5`
 
-The response is `{query, mode, sources}`, with one group for each matching source:
+The response is `{query, mode, sources}`, with one group for each source
+that matches.
 
 ```json
 {
@@ -38,56 +39,60 @@ The response is `{query, mode, sources}`, with one group for each matching sourc
 }
 ```
 
-This illustrates the response shape, not a complete set of search results.
-The default `mode=exact` returns only case-insensitive exact labels, marked
-`match: "exact"`. Surrounding whitespace on the query and label is ignored;
-words and chemical punctuation are preserved. Thus `water` does not select
-`water absorption`, and `Fe(III)` does not select `FeIII` or `Fe(II)`.
+The example shows the shape of a response, and a real search can return
+more groups and candidates. The default `mode=exact` returns labels equal
+to the term, ignoring case and surrounding whitespace, marked
+`match: "exact"`. Words and chemical punctuation count, so `water` does not
+select `water absorption`, and `Fe(III)` selects neither `FeIII` nor
+`Fe(II)`.
 
-Explicit `mode=similar` returns only non-exact whole-word label matches,
-marked `match: "label"`. For example, `/candidates?q=water&mode=similar`
-may return `water absorption` but excludes the exact label `water`.
-Both word boundaries are required, so `iron` can match `iron atom` but
-not `ironic`. These are similar names, not inferred synonyms, nearest
-concepts, or asserted SKOS mappings. No alternative-label or synonym index
-is consulted. Definitions are not searched and need not exist.
+`mode=similar` returns the other labels that contain the term as a whole
+word, marked `match: "label"`. For example, `/candidates?q=water&mode=similar`
+may return `water absorption` and leaves out the exact label `water`. The
+term must stand as a whole word at both ends, so `iron` can match
+`iron atom` and not `ironic`. A similar name carries no claim of synonymy,
+nearness or an asserted SKOS mapping. No alternative-label or synonym index
+is consulted, and definitions are neither searched nor required.
 
-Only indexed OWL/RDFS classes and SKOS concepts qualify; properties are
-excluded. Mode filtering happens before each source's independent cap,
-default 5 and at most 20. A group sets `truncated` when it has further
-matches in that mode. Sources with no matches are absent. An empty result
-is `{query, mode, sources: []}`. Other mode values are rejected.
+Only indexed OWL and RDFS classes and SKOS concepts qualify, so properties
+never appear. The mode filter applies before the cap of each source, which
+is 5 by default. `limitPerSource` must be a whole number from 1 to 20, and
+any other value is rejected. A group sets `truncated` when it has further
+matches in that mode, and a source with no matches is absent. An empty
+result is `{query, mode, sources: []}`, and any other mode is rejected.
 
-The search term must be nonblank text of at most 200 characters, without
-control characters after trimming surrounding whitespace. Selection identity is the pair of source key and entity
-IRI; similar labels in different sources do not assert equivalence.
+Once surrounding whitespace is trimmed, the search term must be nonblank,
+at most 200 characters long and free of ASCII control characters. A selection is
+identified by the pair of source key and entity IRI, and similar labels in
+different sources do not assert equivalence.
 
-`kind` states what the source's own graph declares itself to be: `ontology`
-when the graph holds an `owl:Ontology`, `vocabulary` when it holds a
-`skos:ConceptScheme` and no `owl:Ontology`, and `other` when it holds
-neither. An OWL ontology that also declares a concept scheme is an ontology.
-The same `source` object, with `kind`, appears in the hierarchy answer.
+`kind` states what the graph of the source declares itself to be. A graph
+holding an `owl:Ontology` is an `ontology`, one holding a
+`skos:ConceptScheme` and no `owl:Ontology` is a `vocabulary`, and one
+holding neither is `other`. An OWL ontology that also declares a concept
+scheme is an ontology. The same `source` object, with `kind`, appears in
+the hierarchy answer.
 
 ## Read direct parents
 
 `GET /hierarchy?source=chebi&iri=http%3A%2F%2Fpurl.obolibrary.org%2Fobo%2FCHEBI_18248`
 
-The response has these fields:
+| Field                      | Content                                                                      |
+| -------------------------- | ---------------------------------------------------------------------------- |
+| `source`                   | The same `{key, title, version?, license, kind}` object as a candidate group |
+| `entity`                   | `{iri, label}`, taken from the index record of the selected source           |
+| `parents`                  | An array of `{iri, label?, predicate, direction}`                            |
+| `truncated`                | Whether more than 50 parent relationships exist                              |
+| `hasAnonymousSuperclasses` | Whether an asserted `rdfs:subClassOf` object is a blank node                 |
+| `mappings`                 | An array of `{iri, label?, predicate, direction}`, at most 20                |
 
-- `source`: the same `{key, title, version?, license, kind}` metadata as a search group.
-- `entity`: `{iri, label}`, taken from the selected source's index record.
-- `parents`: an array of `{iri, label?, predicate, direction}`.
-- `truncated`: whether more than 50 parent relationships exist.
-- `hasAnonymousSuperclasses`: whether an asserted `rdfs:subClassOf` object is a blank node.
-- `mappings`: an array of `{iri, label?, predicate, direction}`, at most 20.
+Both parameters are required. The source must qualify and must index the
+entity as a class or concept. A source key consists of lowercase letters,
+digits and hyphens, starts with a letter or digit, and has at most 64
+characters. An entity IRI must be an absolute HTTP or HTTPS IRI of at most
+2,048 characters that a SPARQL query can hold between angle brackets.
 
-Both parameters are required. The source must be eligible and must index the
-selected entity as a class or concept. Source keys use lowercase letters,
-digits and hyphens, starting with a letter or digit, up to 64 characters.
-Entity IRIs must be substitutable absolute HTTP(S) IRIs of at most 2,048
-characters.
-
-Parents are only directly asserted named relationships in that source:
+Parents are the named relationships the source asserts directly.
 
 | Predicate                                         | Direction  | Assertion                                  |
 | ------------------------------------------------- | ---------- | ------------------------------------------ |
@@ -95,16 +100,17 @@ Parents are only directly asserted named relationships in that source:
 | `http://www.w3.org/2004/02/skos/core#broader`     | `outgoing` | parent is a broader concept                |
 | `http://www.w3.org/2004/02/skos/core#narrower`    | `incoming` | parent explicitly names entity as narrower |
 
-Labels come only from the selected source. A parent without its own indexed
-label remains present with its IRI. Different predicates or directions to
-the same parent remain distinct relationships. Transitive ancestors,
-inferred placements, equivalence axioms and anonymous class expressions are
-not returned as named parents. An empty parent list means no named parent
-was asserted; it does not establish that the entity is an ontology root.
+Labels come only from the selected source, and a parent without its own
+indexed label is returned with its IRI alone. Different predicates or
+directions to the same parent remain distinct relationships. The answer
+leaves out transitive ancestors, inferred placements, equivalence axioms
+and anonymous class expressions. An empty parent list means the source
+asserts no named parent, which does not make the entity a root of the
+ontology.
 
-Mappings are the named mapping assertions of that source about the entity.
-`direction` is `outgoing` when the entity is the subject of the assertion
-and `incoming` when it is the object:
+Mappings are the named mapping assertions the source makes about the
+entity. `direction` is `outgoing` when the entity is the subject of the
+assertion and `incoming` when it is the object.
 
 | Predicate                                        | Assertion                               |
 | ------------------------------------------------ | --------------------------------------- |
@@ -112,41 +118,47 @@ and `incoming` when it is the object:
 | `http://www.w3.org/2004/02/skos/core#closeMatch` | the two concepts are a close match      |
 | `http://www.w3.org/2002/07/owl#equivalentClass`  | the two classes are declared equivalent |
 
-Only a named IRI at the other end qualifies. An `owl:equivalentClass` whose
-object is a class expression, which is a blank node, is not returned. Today
-every equivalence axiom in the OWL sources is of that form, so the usable
-mappings are the SKOS links. Mappings are read from the selected source's
-own graph, and a label is present only when that source indexes the mapped
-entity. The array holds at most 20 mappings, in order by predicate and then
-IRI, and reports no truncation.
+Only a named IRI at the other end qualifies, so an `owl:equivalentClass`
+whose object is a class expression, which is a blank node, is not returned.
+Every equivalence axiom in the current OWL sources has that form, so the
+usable mappings are the SKOS links. Mappings come from the graph of the
+selected source, and a label is present only when that source indexes the
+mapped entity. The array holds at most 20 mappings, ordered by predicate
+and then IRI, and reports no truncation.
 
-NIST models a synonym as a bare concept, typed and labelled but in no scheme
-and under no broader concept, which the real concept names by
+NIST models a synonym as a bare concept, typed and labelled but in no
+scheme and under no broader concept, which the real concept names by
 `skos:exactMatch`. The synonym therefore has no parent and one incoming
-mapping, and the concept lists each synonym as an outgoing mapping. A mapping
-is what the source asserts. It does not make the mapped entity a candidate,
-and selection identity remains the pair of source key and entity IRI.
+mapping, and the concept lists each synonym as an outgoing mapping. A
+mapping is what the source asserts. It does not make the mapped entity a
+candidate.
 
 ## Bounds and errors
 
-Each request shares a 12-second deadline across its store queries. The store
-is sent the deadline and stops a query when it passes, and the application
-stops waiting as soon as the caller disconnects. Query results and final JSON
-responses are capped at 128 KiB. More than 32 eligible sources is an error
-rather than a silently incomplete source list. Per-source candidate caps and
-the parent cap use an extra result row to detect truncation. The mapping cap
-keeps the first 20 mappings in their fixed order and reports no truncation.
+Each request shares a 12-second deadline across its store queries. The
+store receives the deadline and stops a query when it passes, and the
+application stops waiting as soon as the caller disconnects. Query results
+and the final JSON response are capped at 128 KiB. More than 32 qualifying
+sources is an error, so the source list is never silently incomplete. The
+candidate and parent caps each fetch one extra row to detect truncation,
+and the mapping cap keeps the first 20 mappings in their fixed order
+without reporting truncation.
 
 Candidate searches are answered from an index of the descriptions that the
 application holds in memory. The index loads when the application starts
-and again after the store is replaced. That takes some seconds, and longer
-when the host is busy. While it loads, one search at a time runs as a SPARQL
-query against the store, which gives the same answer in seconds rather than
-milliseconds. The others wait for the index within the same 12-second
-deadline. A search still waiting when the deadline passes fails with HTTP
-502, as any other store failure does.
+and again after the store is replaced, which takes some seconds, and longer
+on a busy host. During a load, one search at a time runs as a SPARQL query
+against the store, which gives the same answer in seconds where the index
+takes milliseconds. The others wait for the index for at most a quarter of
+the time left before the deadline, then run as SPARQL queries in the time
+that remains. A search that the deadline overtakes fails with HTTP 502, as
+any other store failure does. A term containing a capital sigma (Σ) always
+runs as a SPARQL query, and so does every search when the application runs
+with `MATSCI_ONT_LOOKUP_INDEX=off`. `GET /lookup-status` reports whether
+the index is ready.
 
-Responses, including errors, are JSON. Invalid input or a selection outside
-the permitted scope returns HTTP 400 with `{error}`. Store failures,
-timeouts and response-limit failures return HTTP 502. Methods other than GET
-or HEAD return HTTP 405. An empty successful answer is distinct from an error.
+Every response is JSON, errors included. Invalid input or a selection
+outside the permitted scope returns HTTP 400 with `{error}`. Store failures,
+timeouts and responses over the size cap return HTTP 502, and methods other
+than GET or HEAD return HTTP 405. An empty successful answer is distinct
+from an error.

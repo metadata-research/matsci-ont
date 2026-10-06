@@ -1,8 +1,6 @@
-I have read the actual code. Here is the report.
-
 # OntServe Ontology-Browsing UI — Replication Study
 
-All paths relative to `/home/chris/dev/onto/OntServe/` (note: `/home/chris/dev/onto` is a symlink to `~/onto`). Stack today: Flask + SQLAlchemy + PostgreSQL (+pgvector), Jinja2, Bootstrap 5.3, rdflib at request time. Entities are pre-extracted from TTL into a DB table; pages are built from that table plus per-request rdflib parses of the current TTL version.
+All paths are relative to the root of the OntServe repository, as read on 2026-08-24. Stack at the time: Flask + SQLAlchemy + PostgreSQL (+pgvector), Jinja2, Bootstrap 5.3, rdflib at request time. Entities are pre-extracted from TTL into a DB table; pages are built from that table plus per-request rdflib parses of the current TTL version.
 
 ## 0. The backing data structure (everything hangs off this)
 

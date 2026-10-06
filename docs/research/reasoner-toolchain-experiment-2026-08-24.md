@@ -1,6 +1,8 @@
 # OWL Reasoning Toolchain for MatSci-ONT — Empirical Report
 
-All experiments run in `/tmp/claude-1000/-home-chris-dev/8d31cd45-6239-4260-8f1d-5068132225be/scratchpad/reasoner-exp/` (artifacts retained there: `src/`, `out/`, `catalog-*.xml`, `*.rq`). Java: `JAVA_HOME=/home/chris/dev/systemada/matsci-ont/tools/jdk-21.0.12.1+1-jre`, invoked as `$JAVA_HOME/bin/java -jar robot.jar …`. Everything below marked with numbers was measured on this machine today; anything not measured is tagged UNCONFIRMED.
+This record dates from 2026-08-24, and two of its results were superseded. The reasoner output overlaps the asserted hierarchy. The pipeline finds 1,466 of the 1,581 PMDco pairs already asserted and subtracts them, so the zero intersection reported under §6 did not hold. CHAMEO now reasons against the pinned EMMO closure (see `emmo-closure-1.0.3-2026-08-24.md`) and no longer maps its imports to the empty ontology. `docs/build.md` describes the reasoning step as built.
+
+All experiments ran in a temporary scratch directory, `reasoner-exp/` (artifacts retained there: `src/`, `out/`, `catalog-*.xml`, `*.rq`). Java: the pinned JRE, `JAVA_HOME=tools/jdk-21.0.12.1+1-jre`, invoked as `$JAVA_HOME/bin/java -jar robot.jar …`. Everything below marked with numbers was measured on this machine on 2026-08-24; anything not measured is tagged UNCONFIRMED.
 
 ## 0. Pinned artifact
 

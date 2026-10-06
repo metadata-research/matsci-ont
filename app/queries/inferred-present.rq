@@ -1,3 +1,4 @@
-# Tells the pages whether any inferred graph exists yet, which is what
-# shows or hides the inferred toggle (Phase 9 lights this up).
+# Tells the pages whether a source has an inferred graph, which is what
+# shows or hides the inferred toggle. The build writes one only for a source
+# whose reasoning added at least one pair.
 ASK { GRAPH <@@INFGRAPH@@> { ?s ?p ?o } }
