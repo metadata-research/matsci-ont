@@ -1,0 +1,20 @@
+# Export one bounded source page. Metadata belongs to the description,
+# never to another description of the same publisher entity.
+PREFIX ont: <@@ONT@@>
+PREFIX owl: <http://www.w3.org/2002/07/owl#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+SELECT ?entry ?iri ?label ?definition ?version ?license ?typed ?lower WHERE {
+  GRAPH <@@DEFS@@> {
+    ?entry ont:sourceKey @@KEY@@ .
+    @@PAGE@@
+    ?entry ont:entity ?iri ; ont:label ?label ;
+           ont:sourceVersion ?version ; ont:license ?license .
+    OPTIONAL { ?entry ont:definition ?definition }
+  }
+  BIND(EXISTS {
+    GRAPH <@@GRAPH@@> { ?iri a ?type }
+    VALUES ?type { owl:Class rdfs:Class skos:Concept }
+  } AS ?typed)
+  BIND(LCASE(STR(?label)) AS ?lower)
+}
